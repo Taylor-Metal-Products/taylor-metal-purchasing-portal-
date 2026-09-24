@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none">
+  <defs>
+    <pattern id="minor" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" stroke="#4f87ad" stroke-width="1" opacity=".22"/></pattern>
+    <pattern id="major" width="120" height="120" patternUnits="userSpaceOnUse"><rect width="120" height="120" fill="url(#minor)"/><path d="M120 0H0V120" stroke="#39759e" stroke-width="1.5" opacity=".28"/></pattern>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M8 4 0 0v8z" fill="#326c95" opacity=".55"/></marker>
+  </defs>
+  <rect width="1600" height="1000" fill="url(#major)"/>
+  <g stroke="#326c95" stroke-width="4" opacity=".42">
+    <path d="M215 720 410 265l380-120 410 145 190 430-565 125z"/>
+    <path d="m410 265 415 580M790 145l35 700M1200 290 825 845M410 265l380-120 410 145"/>
+    <path d="m215 720 610 125 565-125" stroke-width="7"/>
+    <path d="M410 265 825 845 1200 290" stroke-dasharray="18 12"/>
+    <path d="M515 352 790 145 1083 372" stroke-width="6"/>
+  </g>
+  <g stroke="#326c95" stroke-width="2" opacity=".42" marker-start="url(#arrow)" marker-end="url(#arrow)">
+    <path d="M195 790h1200"/><path d="M150 710V270"/><path d="M430 220h750"/>
+  </g>
+  <g fill="#326c95" opacity=".48" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">
+    <text x="735" y="925">ROOF PLAN</text><text x="680" y="202">RIDGE</text><text x="800" y="875">EAVE</text>
+    <text x="695" y="520" transform="rotate(56 695 520)">VALLEY</text><text x="980" y="560" transform="rotate(-55 980 560)">HIP</text>
+    <text x="710" y="785">48'-0&quot;</text><text x="75" y="510" transform="rotate(-90 75 510)">32'-6&quot;</text>
+  </g>
+</svg>

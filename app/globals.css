@@ -238,7 +238,33 @@ select{cursor:pointer}textarea{min-height:92px;line-height:1.5}
   footer{line-height:1.45}
 }
 
+/* Order-management and architectural detailing */
+body{background:#dce8f1 url('/roof-blueprint.svg') center 82px/1500px auto fixed no-repeat;background-blend-mode:soft-light}
+main:not(.printSummaryPage){position:relative;isolation:isolate}
+main:not(.printSummaryPage)::before{content:"";position:fixed;inset:68px 0 0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(244,249,253,.82),rgba(213,229,241,.68));backdrop-filter:blur(1px)}
+.topbar{border-bottom:1px solid rgba(126,159,183,.75);box-shadow:0 10px 30px rgba(22,65,96,.14)}
+.headerActions{display:flex;align-items:center;gap:10px}.headerActions .primaryGhost{background:linear-gradient(180deg,#176f9e,#0a527c);color:#fff;border-color:#0b4d72;box-shadow:inset 0 1px rgba(255,255,255,.25),0 6px 13px rgba(10,73,109,.22)}
+.headerActions button:disabled,.reportActions button:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.hero,.formCard,.summary,.orderLibrary{background:linear-gradient(145deg,rgba(255,255,255,.92),rgba(239,246,251,.82));border:1px solid rgba(255,255,255,.86);box-shadow:0 20px 45px rgba(25,67,98,.16),inset 0 1px rgba(255,255,255,.95);backdrop-filter:blur(13px)}
+.hero{color:var(--blue)}
+.hero p,.hero .eyebrow{color:var(--blue)}
+.orderPill{color:var(--blue);text-transform:none;background:rgba(255,255,255,.46);border-color:rgba(30,102,148,.2)}.orderPill span{color:var(--blue);text-transform:capitalize}.orderPill strong{color:var(--blue);max-width:280px;overflow-wrap:anywhere}
+.financialSummary{margin-top:18px;padding:16px;border:1px solid rgba(119,151,174,.42);border-radius:13px;background:linear-gradient(145deg,rgba(244,249,252,.9),rgba(222,235,244,.72));box-shadow:inset 0 1px rgba(255,255,255,.9),0 8px 18px rgba(30,73,104,.1)}
+.financialSummary div{display:flex;justify-content:space-between;gap:20px;padding:7px 2px;color:#38566d;font-size:12px}.financialSummary .total{margin-top:5px;padding-top:12px;border-top:1px solid #b8cad8;color:#133e5d;font-size:15px}.financialSummary small{display:block;margin-top:9px;color:#60798b;line-height:1.45}
+.reportActions{display:flex;flex-wrap:wrap;gap:10px;margin-top:15px}.reportActions button{min-height:42px}
+.orderMessage{margin:14px 0 0;padding:11px 13px;border:1px solid #a7c8dc;border-radius:10px;background:rgba(232,245,252,.92);color:#1f5879;font-size:12px;font-weight:700}
+.orderLibraryBackdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:20px;background:rgba(7,27,42,.5);backdrop-filter:blur(7px)}
+.orderLibrary{width:min(720px,100%);max-height:min(720px,88vh);overflow:auto;border-radius:20px;padding:20px}
+.orderLibraryHead{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin-bottom:15px}.orderLibraryHead span{font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#5d788b}.orderLibraryHead h2{margin:3px 0 0;color:#173f5d}.orderLibraryHead button{width:42px;height:42px;border:1px solid #adc2d1;border-radius:11px;background:linear-gradient(#fff,#dce9f2);color:#234d69;font-size:22px;box-shadow:0 5px 10px rgba(30,69,97,.13)}
+.orderList{display:grid;gap:9px}.orderList>button{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;padding:14px 15px;text-align:left;border:1px solid #b6cad8;border-radius:12px;background:rgba(255,255,255,.82);box-shadow:0 6px 14px rgba(27,67,95,.09);color:#173f5d}.orderList>button:hover{transform:translateY(-1px);box-shadow:0 9px 18px rgba(27,67,95,.15)}.orderList span{display:grid;gap:4px}.orderList small{color:#698192}.orderList b{padding:6px 9px;border-radius:999px;text-transform:capitalize;font-size:10px}.orderList b.draft{background:#fff1c9;color:#8c5c00}.orderList b.submitted{background:#dff4e9;color:#176541}.emptyOrders{padding:32px;text-align:center;color:#61798b}
+.printPricing p{display:flex;justify-content:flex-end;gap:50px;margin:7px 0}.printPricing p span{min-width:160px}.printPricing .grandTotal{padding-top:8px;border-top:1px solid #a7bac8;font-size:14px}.printPricing small{display:block;margin-top:10px;color:#60778a}
+@media(max-width:700px){.headerActions{gap:6px}.headerActions .ghost{min-height:42px;padding:8px 10px;font-size:10px}.orderPill strong{font-size:12px}.orderLibrary{padding:15px}.orderList>button{align-items:flex-start}.reportActions{display:grid;grid-template-columns:1fr 1fr}}
+
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+.brandLogo{width:190px;height:auto;max-height:50px;object-fit:contain;border-radius:0;background:transparent;box-shadow:none}
+.printHeader>img{width:190px;height:auto;max-height:72px;object-fit:contain}
+@media(max-width:620px){.brandLogo{width:145px;height:auto;max-height:44px}}
 
 @media print{
   body{background:#fff;font-family:Arial,Helvetica,sans-serif}.printSheet{border-radius:0;box-shadow:none}.printInfoGrid>div,.printSection table,.printSection th,.printSection td{backdrop-filter:none}

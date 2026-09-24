@@ -1,8 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { jsPDF } from "jspdf";
-import { taylorLogoJpeg } from "./taylor-logo";
+import { safePdfFilename, type OrderStatus, type StoredOrder } from "./order-management";
 import {
   armortechColors,
   getGaugeOptions,
@@ -11,7 +10,6 @@ import {
   kynar500Colors,
   materialLabel,
   normalizeMaterialId,
-  normalizeProductTerminology,
   panelImageCatalog,
   panelProfiles,
   type MaterialFinishId,
@@ -22,6 +20,12 @@ type LengthRow = { id: number; feet: number; inches: number; qty: number };
 type Accessory = { id: string; category: string; name: string; unit: string; price: number | null };
 type AddressSuggestion = { label: string };
 type PanelSnapshot = { materialId:MaterialFinishId;finish:string;name:string;coverage:string;gauge:string;color:string;pan?:string;notching?:string;roofPitch?:string;clip?:string;coil?:string;lengths:LengthRow[];totalPanels:number;area:number };
+type OrderDraftPayload = {
+  customer:string;customerAccount:string;purchasingContact:string;email:string;billingAddress:string;billingAddressVerified:boolean;paymentTerms:string;
+  jobName:string;poNumber:string;projectName:string;receivingContact:string;requestedDate:string;delivery:string;willCallBranch:string;jobsiteAddress:string;jobsiteAddressVerified:boolean;projectNotes:string;
+  panels:PanelSnapshot[];accessoryQty:Record<string,number>;flashingQty:Record<string,number>;flashingSameAsPanel:boolean;flashingGauge:string;flashingColor:string;
+  flashingPitchMode:Record<string,"panel"|"custom">;flashingCustomPitch:Record<string,string>;
+};
 
 const flashingGroups = [
     { name: "Eave Flashings", items: ["1 1-2 Inch Eave", "EL 1x3 Eave Flashing", "Eave Low", "Hook Eave"] },
@@ -153,28 +157,19 @@ function PanelPreview({profile}:{profile?:PanelProfile}){
     </div>
   </section>;
 }
-function requestPdfDownload(payload:any,filename:string){
-  const d=new jsPDF({unit:"pt",format:"letter"}),L=28,W=556,clean=(v:unknown)=>String(v??"").replace(/[•·]/g," | ").replace(/[–—]/g,"-");let y=102;
-  const logo=()=>d.addImage(`data:image/jpeg;base64,${taylorLogoJpeg}`,"JPEG",L,20,122,48);
-  const frame=()=>{logo();d.setFillColor(197,210,227);d.setDrawColor(148,165,184);d.rect(335,20,249,66,"FD");d.setTextColor(21,47,72);d.setFont("helvetica","bold");d.setFontSize(15);d.text("ORDER SUMMARY",347,39);d.setFont("helvetica","normal");d.setFontSize(8);d.text(`Order #: ${clean(payload.orderNumber)}`,347,54);d.text(`PO #: ${clean(payload.poNumber)||"Not provided"}`,347,67);d.text(`Date: ${clean(payload.submitted)}`,462,54);d.text(`Requested: ${clean(payload.project?.requestedDate)||"Not set"}`,462,67)};
-  const next=()=>{d.addPage();frame();y=102},ensure=(h:number)=>{if(y+h>742)next()};
-  const band=(title:string)=>{ensure(25);d.setFillColor(174,194,219);d.setDrawColor(93,118,146);d.rect(L,y,W,20,"FD");d.setTextColor(18,48,76);d.setFont("helvetica","bold");d.setFontSize(9);d.text(title,L+7,y+14);y+=20};
-  const info=(x:number,title:string,rows:string[])=>{d.setFillColor(197,210,227);d.rect(x,y,271,19,"F");d.setTextColor(21,47,72);d.setFont("helvetica","bold");d.setFontSize(8);d.text(title,x+6,y+13);d.setFont("helvetica","normal");d.setTextColor(30,43,55);let ry=y+32;rows.forEach(row=>{const lines=d.splitTextToSize(clean(row),259);d.text(lines,x+6,ry);ry+=Math.max(11,lines.length*9)});d.setDrawColor(180,190,200);d.rect(x,y,271,Math.max(94,ry-y));return Math.max(94,ry-y)};
-  const table=(headers:string[],widths:number[],rows:string[][])=>{const head=()=>{let x=L;headers.forEach((header,i)=>{d.setFillColor(207,218,232);d.setDrawColor(110,130,150);d.rect(x,y,widths[i],20,"FD");d.setTextColor(24,51,76);d.setFont("helvetica","bold");d.setFontSize(7.2);d.text(header,x+4,y+13);x+=widths[i]});y+=20};head();rows.forEach(row=>{const wrapped=row.map((value,i)=>d.splitTextToSize(clean(value),widths[i]-8)),height=Math.max(21,...wrapped.map(value=>value.length*9+7));if(y+height>742){next();head()}let x=L;wrapped.forEach((value,i)=>{d.setFillColor(255,255,255);d.setDrawColor(177,188,199);d.rect(x,y,widths[i],height,"FD");d.setTextColor(25,38,50);d.setFont("helvetica","normal");d.setFontSize(7.5);d.text(value,x+4,y+12);x+=widths[i]});y+=height})};
-  frame();const leftBox=info(L,"PURCHASING COMPANY",[payload.company?.name,`Account: ${payload.company?.account||"Not provided"}`,`Contact: ${payload.company?.contact||"Not provided"}`,payload.company?.email,payload.company?.address,`Payment: ${payload.company?.payment}`]),rightBox=info(L+285,"PROJECT INFORMATION",[`Job: ${payload.project?.jobName}`,`Project: ${payload.project?.projectName||"Not provided"}`,`Receiving: ${payload.project?.receivingContact}`,`Delivery: ${payload.project?.delivery}`,`Submitted by: ${payload.submittedBy}`]);y+=Math.max(leftBox,rightBox)+12;
-  band("PANELS");const panelRows:string[][]=[];(payload.panels||[]).forEach((panel:any,index:number)=>{panelRows.push([panel.totalPanels,`${index+1}. ${panel.name} - ${panel.coverage}`,panel.gauge,normalizeProductTerminology(panel.finish),panel.color,[panel.pan,panel.notching,panel.roofPitch?`Pitch ${panel.roofPitch}`:"",panel.clip].filter(Boolean).join(" | ")]);(panel.lengths||[]).forEach((row:any)=>panelRows.push([row.qty,`Length: ${row.feet} ft ${row.inches} in`,"","","",""]))});table(["QTY","ITEM DESCRIPTION","GA./MATERIAL","FINISH","COLOR","OPTIONS"],[38,170,72,72,100,104],panelRows.length?panelRows:[["0","No panels configured","","","",""]]);
-  d.setFillColor(237,242,247);d.rect(L,y,W,22,"F");d.setTextColor(35,55,73);d.setFont("helvetica","bold");d.setFontSize(8);d.text(`PANEL TOTAL: ${payload.totals?.panels||0}`,L+7,y+15);d.text(`COVERAGE AREA: ${(payload.totals?.area||0).toLocaleString()} SQ FT`,L+180,y+15);y+=30;
-  band("ACCESSORIES");table(["QTY","UNIT","TYPE","ITEM DESCRIPTION","PART"],[45,65,100,260,86],payload.accessories?.length?payload.accessories.map((item:any)=>[item.quantity,item.unit,item.category,item.name,item.part]):[["0","","","No accessories selected",""]]);y+=10;
-  band("FLASHINGS");table(["QTY","ITEM DESCRIPTION","GA./MATERIAL","COLOR"],[45,286,105,120],payload.flashings?.length?payload.flashings.map((item:any)=>[item.quantity,item.name,payload.flashingFinish.gauge,payload.flashingFinish.color]):[["0","No flashings selected",payload.flashingFinish?.gauge,payload.flashingFinish?.color]]);
-  const pages=d.getNumberOfPages();for(let page=1;page<=pages;page++){d.setPage(page);frame();d.setDrawColor(155,171,188);d.line(L,757,L+W,757);d.setTextColor(53,73,92);d.setFont("helvetica","bold");d.setFontSize(7);d.text("RIVERSIDE CA | SACRAMENTO CA | SALEM OR | AUBURN WA | SPOKANE WA | TAYLORMETAL.COM",L,772);d.text(`Page ${page} of ${pages}`,584,772,{align:"right"})}
-  const blob=d.output("blob"),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download=filename;link.style.display="none";document.body.appendChild(link);link.click();link.remove();return url;
-}
-
 export default function Home() {
   const [submitted, setSubmitted] = useState(false);
   const [showPrintSummary, setShowPrintSummary] = useState(false);
   const [pdfDownload, setPdfDownload] = useState<{url:string;filename:string} | null>(null);
   const [pdfError, setPdfError] = useState("");
+  const [orderId, setOrderId] = useState("");
+  const [orderNumber, setOrderNumber] = useState("");
+  const [orderStatus, setOrderStatus] = useState<OrderStatus>("draft");
+  const [orderRevision, setOrderRevision] = useState(0);
+  const [orders, setOrders] = useState<StoredOrder<OrderDraftPayload>[]>([]);
+  const [showOrders, setShowOrders] = useState(false);
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [orderMessage, setOrderMessage] = useState("");
   const [step, setStep] = useState(0);
   const profiles = configuredProfiles;
   const [profileIndex, setProfileIndex] = useState(0);
@@ -247,6 +242,9 @@ export default function Home() {
   const addOnCount = selectedAccessories.length + selectedFlashings.length + (effectiveClip ? 1 : 0);
   const inquiry = Boolean(profile.note?.toLowerCase().includes("inquiry"));
   const complete = customer.trim() && jobName.trim() && receivingContact.trim() && requestedDate && lengthRows.every(row => row.qty > 0 && (row.feet > 0 || row.inches > 0)) && color;
+  const accessorySubtotal = selectedAccessories.reduce((sum,item)=>sum+(item.price??0)*(accessoryQty[item.id]||0),0);
+  const tax = 0;
+  const orderTotal = accessorySubtotal + tax;
 
   function chooseProfile(i: number) {
     const nextProfile=profiles[i],nextMaterial=nextProfile.materials[0],nextGauge=nextMaterial.gauges[0];
@@ -281,17 +279,43 @@ export default function Home() {
   function toggleFlashing(name: string) { setFlashingQty(current => ({ ...current, [name]: current[name] > 0 ? 0 : 1 })); }
   function setFlashingQuantity(name: string, quantity: number) { setFlashingQty(current => ({ ...current, [name]: Math.max(0, quantity) })); }
 
-  function submitOrder() {setPdfError("");setSubmitted(true);setShowPrintSummary(true);}
+  function buildDraftPayload():OrderDraftPayload{return {customer,customerAccount,purchasingContact,email,billingAddress,billingAddressVerified,paymentTerms,jobName,poNumber,projectName,receivingContact,requestedDate,delivery,willCallBranch,jobsiteAddress,jobsiteAddressVerified,projectNotes,panels:allPanels.map(item=>({...item,lengths:item.lengths.map(row=>({...row}))})),accessoryQty:{...accessoryQty},flashingQty:{...flashingQty},flashingSameAsPanel,flashingGauge,flashingColor,flashingPitchMode:{...flashingPitchMode},flashingCustomPitch:{...flashingCustomPitch}}}
+  function buildReportPayload(number=orderNumber){
+    const fulfillmentDetail=delivery==="Will call"?`${delivery} - ${willCallBranch}`:delivery==="Deliver to Jobsite"?`${delivery} - ${jobsiteAddress}`:`${delivery} - ${billingAddress}`;
+    return {orderNumber:number,submitted:new Date().toLocaleDateString(),poNumber,company:{name:customer,account:customerAccount,contact:purchasingContact,email,address:billingAddress,payment:paymentTerms},project:{jobName,projectName,receivingContact,requestedDate,delivery:fulfillmentDetail,notes:projectNotes,address:jobsiteAddress||billingAddress},submittedBy:purchasingContact,panels:allPanels,accessories:selectedAccessories.map(item=>({quantity:accessoryQty[item.id],unit:item.unit,category:accessoryGroup(item),name:item.name,part:item.id,unitPrice:item.price,lineTotal:item.price===null?null:item.price*accessoryQty[item.id]})),flashings:selectedFlashings.map(name=>({quantity:flashingQty[name],name,pitch:flashingPitch(name)})),flashingFinish:{gauge:effectiveFlashingGauge,color:effectiveFlashingColor},totals:{panels:orderPanelCount,area:orderArea,subtotal:accessorySubtotal,tax,total:orderTotal}};
+  }
+  async function persistOrder(status:OrderStatus){
+    if(!customerAccount.trim()){setOrderMessage("Enter a customer account number before saving.");return null;}
+    setSavingOrder(true);setOrderMessage("");
+    try{
+      const response=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:orderId||undefined,customerAccount,status,payload:buildDraftPayload()})});
+      if(!response.ok)throw new Error(await response.text());
+      const saved=await response.json() as StoredOrder<OrderDraftPayload>;
+      setOrderId(saved.id);setOrderNumber(saved.orderNumber);setOrderStatus(saved.status);setOrderRevision(saved.revision);setOrderMessage(status==="submitted"?"Order finalized and saved.":"Draft saved.");
+      return saved;
+    }catch(error){setOrderMessage(error instanceof Error?error.message:"Unable to save order");return null;}finally{setSavingOrder(false);}
+  }
+  async function loadOrderList(){setOrderMessage("");try{const response=await fetch("/api/orders",{cache:"no-store"});if(!response.ok)throw new Error(await response.text());setOrders(await response.json() as StoredOrder<OrderDraftPayload>[]);setShowOrders(true);}catch(error){setOrderMessage(error instanceof Error?error.message:"Unable to load orders");}}
+  function openStoredOrder(order:StoredOrder<OrderDraftPayload>){
+    const value=order.payload;setOrderId(order.id);setOrderNumber(order.orderNumber);setOrderStatus(order.status);setOrderRevision(order.revision);setCustomer(value.customer||"");setCustomerAccount(value.customerAccount||order.customerAccount);setPurchasingContact(value.purchasingContact||"");setEmail(value.email||"");setBillingAddress(value.billingAddress||"");setBillingAddressVerified(Boolean(value.billingAddressVerified));setPaymentTerms(value.paymentTerms||"");setJobName(value.jobName||"");setPoNumber(value.poNumber||"");setProjectName(value.projectName||"");setReceivingContact(value.receivingContact||"");setRequestedDate(value.requestedDate||"");setDelivery(value.delivery||"");setWillCallBranch(value.willCallBranch||"");setJobsiteAddress(value.jobsiteAddress||"");setJobsiteAddressVerified(Boolean(value.jobsiteAddressVerified));setProjectNotes(value.projectNotes||"");setAccessoryQty(value.accessoryQty||{});setFlashingQty(value.flashingQty||{});setFlashingSameAsPanel(value.flashingSameAsPanel!==false);setFlashingGauge(value.flashingGauge||"26 ga");setFlashingColor(value.flashingColor||"Glacier White");setFlashingPitchMode(value.flashingPitchMode||{});setFlashingCustomPitch(value.flashingCustomPitch||{});
+    const panels=value.panels?.length?value.panels:[currentPanel];setSavedPanels(panels.length>1?panels:[]);setActivePanelIndex(0);loadPanel(panels[0]);setStep(0);setSubmitted(order.status==="submitted");setShowOrders(false);setShowPrintSummary(false);setPdfDownload(null);setOrderMessage(`${order.orderNumber} loaded for editing.`);
+  }
+  async function exportPdf(number=orderNumber){
+    if(!number){setPdfError("Save the order to assign an order number before exporting PDF.");return null;}
+    setPdfError("");
+    try{const response=await fetch("/api/order-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(buildReportPayload(number))});if(!response.ok)throw new Error(await response.text());const blob=await response.blob(),url=URL.createObjectURL(blob),filename=safePdfFilename(number),link=document.createElement("a");link.href=url;link.download=filename;link.click();setPdfDownload({url,filename});return url;}catch(error){setPdfError(error instanceof Error?error.message:"Unable to generate PDF");return null;}
+  }
+  async function submitOrder(){setPdfError("");const saved=await persistOrder("submitted");if(!saved)return;setSubmitted(true);await exportPdf(saved.orderNumber);setShowPrintSummary(true);}
 
   if(showPrintSummary){
-    const orderNumber=`TM-${new Date().toISOString().slice(2,10).replaceAll("-","")}-01`;
     const fulfillmentDetail=delivery==="Will call"?`${delivery} - ${willCallBranch}`:delivery==="Deliver to Jobsite"?`${delivery} - ${jobsiteAddress}`:`${delivery} - ${billingAddress}`;
     return <main className="printSummaryPage"><div className="printToolbar"><button onClick={()=>setShowPrintSummary(false)}>← Back to order</button><div><strong>Order summary</strong><span>Review the completed order below.</span></div></div><article className="printSheet">
-      <header className="printHeader"><img src={`data:image/jpeg;base64,${taylorLogoJpeg}`} alt="Taylor Metal Products"/><div><h1>ORDER SUMMARY</h1><dl><div><dt>Order #</dt><dd>{orderNumber}</dd></div><div><dt>PO #</dt><dd>{poNumber||"Not provided"}</dd></div><div><dt>Date</dt><dd>{new Date().toLocaleDateString()}</dd></div><div><dt>Requested</dt><dd>{requestedDate||"Not set"}</dd></div></dl></div></header>
+      <header className="printHeader"><img src="/taylor-metal-logo.png" alt="Taylor Metal Products"/><div><h1>ORDER SUMMARY</h1><dl><div><dt>Order #</dt><dd>{orderNumber}</dd></div><div><dt>PO #</dt><dd>{poNumber||"Not provided"}</dd></div><div><dt>Date</dt><dd>{new Date().toLocaleDateString()}</dd></div><div><dt>Requested</dt><dd>{requestedDate||"Not set"}</dd></div></dl></div></header>
       <section className="printInfoGrid"><div><h2>PURCHASING COMPANY</h2><p><strong>{customer}</strong><br/>Account: {customerAccount}<br/>Contact: {purchasingContact}<br/>{email}<br/>{billingAddress}<br/>Payment: {paymentTerms}</p></div><div><h2>PROJECT INFORMATION</h2><p><strong>Job: {jobName}</strong><br/>Project: {projectName||"Not provided"}<br/>Receiving: {receivingContact}<br/>Delivery: {fulfillmentDetail}<br/>Submitted by: {purchasingContact||"Not provided"}</p></div></section>
       <section className="printSection"><h2>PANELS</h2><table><thead><tr><th>QTY</th><th>ITEM DESCRIPTION</th><th>GA./MATERIAL</th><th>FINISH</th><th>COLOR</th><th>OPTIONS</th></tr></thead><tbody>{allPanels.map((item,index)=><Fragment key={`${item.name}-${index}`}><tr className="parentRow"><td>{item.totalPanels}</td><td>{index+1}. {item.name} - {item.coverage}</td><td>{item.gauge}</td><td>{item.finish}</td><td>{item.color}</td><td>{[item.pan,item.notching,item.roofPitch?`Pitch ${item.roofPitch}`:"",item.clip].filter(Boolean).join(" | ")}</td></tr>{item.lengths.map((row,rowIndex)=><tr key={`${row.id}-${rowIndex}`}><td>{row.qty}</td><td>Length: {row.feet} ft {row.inches} in</td><td colSpan={4}></td></tr>)}</Fragment>)}</tbody></table><div className="printTotals"><strong>PANEL TOTAL: {orderPanelCount}</strong><strong>COVERAGE AREA: {orderArea.toLocaleString()} SQ FT</strong></div></section>
       <section className="printSection"><h2>ACCESSORIES</h2><table><thead><tr><th>QTY</th><th>UNIT</th><th>TYPE</th><th>ITEM DESCRIPTION</th><th>PART</th></tr></thead><tbody>{selectedAccessories.length?selectedAccessories.map(item=><tr key={item.id}><td>{accessoryQty[item.id]}</td><td>{item.unit}</td><td>{accessoryGroup(item)}</td><td>{item.name}</td><td>{item.id}</td></tr>):<tr><td colSpan={5}>No accessories selected</td></tr>}</tbody></table></section>
       <section className="printSection"><h2>FLASHINGS</h2><table><thead><tr><th>QTY</th><th>ITEM DESCRIPTION</th><th>GA./MATERIAL</th><th>COLOR</th><th>PITCH</th></tr></thead><tbody>{selectedFlashings.length?selectedFlashings.map(name=><tr key={name}><td>{flashingQty[name]}</td><td>{name}</td><td>{effectiveFlashingGauge}</td><td>{effectiveFlashingColor}</td><td>{flashingPitch(name)||"N/A"}</td></tr>):<tr><td colSpan={5}>No flashings selected</td></tr>}</tbody></table></section>
+      <section className="printSection printPricing"><h2>PRICING SUMMARY</h2><p><span>Priced accessory subtotal</span><strong>${accessorySubtotal.toFixed(2)}</strong></p><p><span>Taxes / other charges</span><strong>${tax.toFixed(2)}</strong></p><p className="grandTotal"><span>Current order total</span><strong>${orderTotal.toFixed(2)}</strong></p><small>Panel, flashing, freight, and inquiry-item pricing is pending Taylor Metal review and is not included above.</small></section>
       {projectNotes&&<section className="printSection printNotes"><h2>PROJECT NOTES</h2><p>{projectNotes}</p></section>}<footer className="printFooter">RIVERSIDE CA | SACRAMENTO CA | SALEM OR | AUBURN WA | SPOKANE WA | TAYLORMETAL.COM</footer>
     </article></main>
   }
@@ -299,13 +323,13 @@ export default function Home() {
   return (
     <main>
       <header className="topbar">
-        <div className="brand"><img className="brandLogo" src={`data:image/jpeg;base64,${taylorLogoJpeg}`} alt="Taylor Metal Products"/><div><strong>Taylor Metal Products</strong><small>Purchasing Portal Prototype</small></div></div>
-        <div className="headerActions"><button className="ghost">Save draft</button><span className="avatar" aria-label="Taylor Metal">TM</span></div>
+        <div className="brand"><img className="brandLogo" src="/taylor-metal-logo.png" alt="Taylor Metal Products"/><div><strong>Taylor Metal Products</strong><small>Purchasing Portal Prototype</small></div></div>
+        <div className="headerActions"><button className="ghost" type="button" onClick={loadOrderList}>Load orders</button><button className="ghost primaryGhost" type="button" onClick={()=>persistOrder("draft")} disabled={savingOrder}>{savingOrder?"Saving…":"Save draft"}</button></div>
       </header>
 
       <section className="hero">
         <div><p className="eyebrow">New material order</p><h1>Build a purchase package</h1><p>Configure panels, attachment items, delivery, and customer information in one guided order.</p></div>
-        <div className="orderPill"><span>Draft order</span><strong>TM-260806-01</strong></div>
+        <div className="orderPill"><span>{orderStatus}{orderRevision?` · revision ${orderRevision}`:""}</span><strong>{orderNumber||"Enter account number"}</strong></div>
       </section>
 
       <nav className="steps" aria-label="Order steps">
@@ -316,7 +340,7 @@ export default function Home() {
         <section className="formCard">
           {step === 0 && <>
             <SectionHead n="01" title="Customer Information" sub="Company and account information for this order." />
-            <div className="grid2"><Field label="Purchasing company"><input value={customer} onChange={e=>setCustomer(e.target.value)} /></Field><Field label="Customer account"><input value={customerAccount} onChange={e=>setCustomerAccount(e.target.value)} /></Field><Field label="Purchasing contact"><input value={purchasingContact} onChange={e=>setPurchasingContact(e.target.value)} /></Field><Field label="Email"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} /></Field><AddressField label="Billing / company yard address" value={billingAddress} onChange={setBillingAddress} verified={billingAddressVerified} onVerifiedChange={setBillingAddressVerified}/><Field label="Payment terms"><select value={paymentTerms} onChange={e=>setPaymentTerms(e.target.value)}><option value="" disabled>Select payment terms</option><option>Use Account</option><option>Pay with Credit Card</option></select></Field></div>
+            <div className="grid2"><Field label="Purchasing company"><input value={customer} onChange={e=>setCustomer(e.target.value)} /></Field><Field label="Customer account"><input value={customerAccount} onChange={e=>setCustomerAccount(e.target.value)} onBlur={()=>{if(customerAccount.trim()&&!orderId)void persistOrder("draft")}} /></Field><Field label="Purchasing contact"><input value={purchasingContact} onChange={e=>setPurchasingContact(e.target.value)} /></Field><Field label="Email"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} /></Field><AddressField label="Billing / company yard address" value={billingAddress} onChange={setBillingAddress} verified={billingAddressVerified} onVerifiedChange={setBillingAddressVerified}/><Field label="Payment terms"><select value={paymentTerms} onChange={e=>setPaymentTerms(e.target.value)}><option value="" disabled>Select payment terms</option><option>Use Account</option><option>Pay with Credit Card</option></select></Field></div>
           </>}
           {step === 1 && <>
             <SectionHead n="02" title="Project Info" sub="Job, receiving contact, requested date, and delivery method." />
@@ -369,13 +393,16 @@ export default function Home() {
           {step === 5 && <>
             <SectionHead n="06" title="Review & submit" sub="Review the order, then open the complete order summary." />
             <div className="reviewGrid"><Review label="Purchasing company" value={customer}/><Review label="Job" value={jobName}/><Review label="PO Number" value={poNumber || "Not provided"}/><Review label="Project" value={projectName || "Not provided"}/><Review label="Delivery" value={delivery==="Will call"?`${delivery} · ${willCallBranch}`:delivery}/><Review label="Panel types" value={`${allPanels.length} configured`}/><Review label="Panel order" value={`${orderPanelCount} panels · ${orderArea.toLocaleString()} sq ft`}/>{allPanels.map((item,index)=><Review key={`${item.name}-${index}`} label={`Panel ${index+1}`} value={`${item.finish} · ${item.name} · ${item.coverage} · ${item.gauge} · ${item.color}${item.roofPitch?` · Pitch ${item.roofPitch}`:""}`}/>)}<Review label="Accessories" value={`${selectedAccessories.length} items · ${selectedAccessoryUnits} units`}/><Review label="Flashing" value={`${selectedFlashings.length} names · ${selectedFlashingPieces} pieces · ${effectiveFlashingColor} · ${effectiveFlashingGauge}`}/></div>
+            <div className="financialSummary"><div><span>Priced accessory subtotal</span><strong>${accessorySubtotal.toFixed(2)}</strong></div><div><span>Taxes / other charges</span><strong>${tax.toFixed(2)}</strong></div><div className="total"><span>Current total</span><strong>${orderTotal.toFixed(2)}</strong></div><small>Unpriced panels, flashings, freight, and inquiry items require Taylor Metal review.</small></div>
             <label className="ack"><input type="checkbox" defaultChecked/><span>I acknowledge that oil canning can occur in light-gauge metal and is not considered a defect.</span></label>
             <label className="ack"><input type="checkbox" defaultChecked/><span>I have reviewed the profile, finish, color, quantities, delivery details, and accessory assumptions.</span></label>
+            <div className="reportActions"><button type="button" className="ghost" onClick={()=>persistOrder("draft")} disabled={savingOrder}>Save changes</button><button type="button" className="ghost" onClick={()=>exportPdf()} disabled={!orderNumber}>Export PDF</button></div>
             {submitted&&pdfDownload&&<div className="submittedNotice"><strong>Order summary created</strong><span>If the automatic download did not begin, use this direct PDF link.</span><a href={pdfDownload.url} download={pdfDownload.filename}>Download PDF order summary</a></div>}
             {pdfError&&<div className="pdfError" role="alert">{pdfError}</div>}
           </>}
 
-          <div className="formActions"><button type="button" className="back" onClick={()=>setStep(Math.max(0,step-1))} disabled={step===0}>Back</button><button type="button" className="next" onClick={()=>step<5?setStep(step+1):submitOrder()}>{step===5?"Submit & view summary":"Continue"}<span>→</span></button></div>
+          {orderMessage&&<div className="orderMessage" role="status">{orderMessage}</div>}
+          <div className="formActions"><button type="button" className="back" onClick={()=>setStep(Math.max(0,step-1))} disabled={step===0}>Back</button><button type="button" className="next" onClick={()=>step<5?setStep(step+1):submitOrder()} disabled={savingOrder}>{step===5?(orderStatus==="submitted"?"Resubmit & generate PDF":"Submit & generate PDF"):"Continue"}<span>→</span></button></div>
         </section>
 
         <aside className="summary">
@@ -385,6 +412,7 @@ export default function Home() {
           <div className="statusBox"><span className={inquiry?"amber":"green"}></span><div><strong>{inquiry?"Inquiry configuration":"Configuration valid"}</strong><small>{inquiry?"Availability and pricing review required":"No catalog conflicts detected"}</small></div></div>
         </aside>
       </div>
+      {showOrders&&<div className="orderLibraryBackdrop" role="presentation" onMouseDown={()=>setShowOrders(false)}><section className="orderLibrary" role="dialog" aria-modal="true" aria-label="Saved orders" onMouseDown={event=>event.stopPropagation()}><div className="orderLibraryHead"><div><span>Persistent order storage</span><h2>Saved orders</h2></div><button type="button" onClick={()=>setShowOrders(false)} aria-label="Close saved orders">×</button></div>{orders.length?<div className="orderList">{orders.map(order=><button type="button" key={order.id} onClick={()=>openStoredOrder(order)}><span><strong>{order.orderNumber}</strong><small>{order.customerAccount} · updated {new Date(order.updatedAt).toLocaleString()}</small></span><b className={order.status}>{order.status}</b></button>)}</div>:<div className="emptyOrders">No saved orders yet.</div>}</section></div>}
       <footer><span>Interactive prototype · Catalog rules dated June/August 2026</span><span>12 in Kynar 500® Contour is excluded</span></footer>
     </main>
   );
@@ -401,7 +429,7 @@ function AddressField({label,value,onChange,verified,onVerifiedChange}:{label:st
   const [lookupFailed,setLookupFailed]=useState(false);
 
   useEffect(()=>{
-    if(verified||value.trim().length<4){setSuggestions([]);setChecking(false);return;}
+    if(verified||value.trim().length<4){const reset=window.setTimeout(()=>{setSuggestions([]);setChecking(false)},0);return()=>window.clearTimeout(reset);}
     const controller=new AbortController();
     const timer=window.setTimeout(async()=>{
       setChecking(true);setLookupFailed(false);
@@ -422,5 +450,6 @@ function AddressField({label,value,onChange,verified,onVerifiedChange}:{label:st
   },[value,verified]);
 
   function selectAddress(address:string){onChange(address);onVerifiedChange(true);setSuggestions([]);setOpen(false);setLookupFailed(false);}
-  return <label className="wide addressField"><span>{label}</span><div className="addressInput"><input value={value} autoComplete="street-address" onFocus={()=>setOpen(true)} onBlur={()=>window.setTimeout(()=>setOpen(false),150)} onChange={e=>{onChange(e.target.value);onVerifiedChange(false);setOpen(true)}} aria-autocomplete="list" aria-expanded={open&&suggestions.length>0}/>{checking&&<i>Checking…</i>}{verified&&<i className="verified">✓ Verified</i>}</div>{open&&suggestions.length>0&&<div className="addressSuggestions" role="listbox">{suggestions.map(item=><button type="button" role="option" key={item.label} onMouseDown={e=>e.preventDefault()} onClick={()=>selectAddress(item.label)}>{item.label}</button>)}</div>}{!verified&&!checking&&value.trim().length>=4&&<small className={lookupFailed?"lookupFailed":"addressHint"}>{lookupFailed?"Address lookup is temporarily unavailable. You may continue and try again later.":"Select a suggested address to verify it."}</small>}</label>;
+  const listId=`address-${label.toLowerCase().replace(/[^a-z0-9]+/g,"-")}-suggestions`;
+  return <label className="wide addressField"><span>{label}</span><div className="addressInput"><input value={value} autoComplete="street-address" role="combobox" aria-controls={listId} onFocus={()=>setOpen(true)} onBlur={()=>window.setTimeout(()=>setOpen(false),150)} onChange={e=>{onChange(e.target.value);onVerifiedChange(false);setOpen(true)}} aria-autocomplete="list" aria-expanded={open&&suggestions.length>0}/>{checking&&<i>Checking…</i>}{verified&&<i className="verified">✓ Verified</i>}</div>{open&&suggestions.length>0&&<div id={listId} className="addressSuggestions" role="listbox">{suggestions.map(item=><button type="button" role="option" aria-selected="false" key={item.label} onMouseDown={e=>e.preventDefault()} onClick={()=>selectAddress(item.label)}>{item.label}</button>)}</div>}{!verified&&!checking&&value.trim().length>=4&&<small className={lookupFailed?"lookupFailed":"addressHint"}>{lookupFailed?"Address lookup is temporarily unavailable. You may continue and try again later.":"Select a suggested address to verify it."}</small>}</label>;
 }

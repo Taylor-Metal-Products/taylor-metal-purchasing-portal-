@@ -1,108 +1,83 @@
-# vinext-starter
+# Taylor Metal Purchasing Portal
 
-A clean full-stack starter running on
-[vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and
-Drizzle support.
+Internal ordering portal for configuring Taylor Metal panels, accessories, and flashings and producing purchasing summaries in browser, PDF, and Excel formats.
 
-## Prerequisites
+## Engineering start points
 
-- Node.js `>=22.13.0`
-- Linux with `flock`, `curl`, and GNU `timeout`
+- [Architecture and business rules](docs/ARCHITECTURE_AND_BUSINESS_RULES.md)
+- [Panel configuration ownership](docs/PANEL_CONFIGURATION.md)
+- [Engineering decisions](docs/DECISIONS.md)
+- [Known risks](docs/RISK_REGISTER.md)
+- [QA and release checklist](docs/QA_RELEASE_CHECKLIST.md)
+- [Change and rollback process](docs/CHANGE_PROCESS.md)
 
-## Sites Lifecycle
+The portal uses proportional review: visual-only edits receive lightweight verification, while material rules, calculations, saved-order compatibility, generated documents, authentication, and deployment require deeper evidence and a rollback checkpoint.
 
-The Sites lifecycle CLI runs the locked dependency install before returning this checkout. Edit the source under `app/`, then checkpoint when a coherent milestone is ready to inspect or share. The remote Sites builder runs `npm run build` against the pushed commit. Do not repeat install or build as a normal pre-checkpoint step.
+## Source of truth
 
-This starter does not use `wrangler.jsonc`.
+`app/panel-config.ts` owns panel IDs, display names, material/finish availability, gauges or thicknesses, colors, coil requirements, and panel preview mappings. UI controls and generated outputs must consume this configuration rather than duplicate those rules.
 
-`install:ci` is intentionally a single, non-retrying `npm ci`. It refuses a concurrent install for the same project, consumes a matching image-seeded npm cache with `--prefer-offline` while retaining registry fallback for a missing cache object, otherwise downloads and verifies the complete vinext tarball recorded in `package-lock.json`, limits npm to one socket, and terminates a stalled install. `build` applies a short timeout and then validates the Sites artifact. These helpers target Linux and use GNU `timeout`; they are not native macOS scripts.
+## Commands
 
-Scripts that need writable project-scoped home, npm, XDG, and temporary paths use `scripts/sites-env.sh`. The `dev` and `start` scripts honor the caller's runtime environment and keep Wrangler logs inside the checkout. The generated `.sites-runtime/` directory is disposable and ignored by Git.
+- `npm run dev` — start the local development server.
+- `npm run build` — build and validate the deployable artifact.
+- `npm test` — build, validate, and run the portal regression tests.
+- `npm run lint` — run ESLint.
+- `npm run validate:artifact` — validate an existing Sites artifact.
 
-## Included Shape
+Node.js 22.13 or newer is required. The build helpers run in a Bash-compatible environment.
 
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
+## Clone and local setup
 
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from
-`oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```powershell
+git clone https://github.com/Taylor-Metal-Products/taylor-metal-purchasing-portal-.git
+cd taylor-metal-purchasing-portal-
+npm ci
+npm run dev
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+Open the local URL printed by Vite, normally `http://localhost:5173`.
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+The portal uses the configured Cloudflare D1 `DB` binding for persistent orders. Local development uses the D1 simulation supplied by the Vite/Cloudflare plugin. `.openai/hosting.json` declares the binding name but contains no credentials. No environment variable is required for normal local development. Never commit `.env` files, tokens, API keys, passwords, or downloaded production data.
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+## Continue development in Codex
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+1. Clone the repository on the developer’s computer.
+2. Open Codex and select the cloned repository folder as the project/workspace.
+3. Read this README and the files in `docs/` before changing business rules.
+4. Run `npm ci`, `npm test`, and `npm run lint` to establish a clean baseline.
+5. Create a branch for the change:
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+```powershell
+git switch -c feature/short-description
+```
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+6. Make and test the change. Keep panel compatibility in `app/panel-config.ts` and order persistence changes compatible with existing stored payloads.
+7. Review and commit only intended source files:
 
-## Diagnostic Commands
+```powershell
+git status --short
+git add <intended-files>
+git commit -m "feat: describe the change"
+git push -u origin feature/short-description
+```
 
-- `npm run install:ci`: perform the one bounded lockfile install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build and validate the deployable Sites artifact
-- `npm run start`: start the built Vinext application
-- `npm test`: build, validate, and verify the rendered development-preview metadata
-- `npm run validate:artifact`: recheck an existing artifact's manifest and ESM `default.fetch` export
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+8. Open a GitHub pull request for review before merging into `main`.
 
-Use build and validation commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
+Repository access is managed in GitHub under **Settings → Collaborators and teams → Add people**. Enter the coworker’s exact GitHub username; do not infer it from an email address.
 
-The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
+## Deployment
 
-## Learn More
+Production is hosted through the existing Sites project identified in `.openai/hosting.json`.
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+1. Merge the reviewed change to `main`.
+2. Run `npm test` and `npm run lint` against the exact commit being released.
+3. Build and package that exact commit through the managed Sites workflow.
+4. Save and deploy the resulting version to the existing Sites project.
+5. Confirm the deployment reports success, then smoke-test order save/load/edit/finalize and PDF generation on the live URL.
+
+Do not create a second Sites project for this repository. Do not place hosting credentials in Git, the README, or shell scripts.
+
+## Release rule
+
+Do not publish changes to pricing, product compatibility, calculations, saved-order handling, or generated output until the relevant automated checks and manual checklist entries pass. Create a Git checkpoint before every high-risk change.
