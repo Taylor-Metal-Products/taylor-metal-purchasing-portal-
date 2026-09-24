@@ -1,0 +1,27 @@
+Taylor Metal Purchasing Portal — Handoff Package
+
+This package contains the current source code and the project files supplied
+for the Taylor Metal Purchasing Portal prototype.
+
+Contents
+--------
+source/  The complete website source, including package.json and package-lock.json.
+assets/  Project attachments used during development:
+  - TMP Quote.xlsx
+  - TMP Quote sheet.pdf
+  - Flashings_Line_Drawings.zip
+
+How to run it locally
+---------------------
+1. Install Node.js 22.13 or newer.
+2. Open a terminal in the source folder.
+3. Run: npm ci
+4. Run: npm run dev
+
+The existing project README inside source/ has additional technical notes.
+
+Important
+---------
+This ZIP intentionally excludes dependencies (node_modules), build output, and
+Git history to keep the download small. The included package-lock.json lets a
+developer restore the required dependencies exactly.
