@@ -1,0 +1,83 @@
+import { formatOrderNumber, type OrderStatus, type StoredOrder } from "./order-management";
+
+const STORAGE_KEY = "taylor-metal-purchasing-portal.orders.v1";
+
+function readOrders<T>(): StoredOrder<T>[] {
+  try {
+    const value = window.localStorage.getItem(STORAGE_KEY);
+    return value ? JSON.parse(value) as StoredOrder<T>[] : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeOrders<T>(orders: StoredOrder<T>[]) {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
+}
+
+export function listBrowserOrders<T>() {
+  return readOrders<T>().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export function saveBrowserOrder<T>(input: { id?: string; customerAccount: string; status: OrderStatus; payload: T }) {
+  const orders = readOrders<T>();
+  const now = new Date().toISOString();
+  const existingIndex = input.id ? orders.findIndex(order => order.id === input.id) : -1;
+
+  if (existingIndex >= 0) {
+    const existing = orders[existingIndex];
+    const updated: StoredOrder<T> = {
+      ...existing,
+      customerAccount: input.customerAccount,
+      status: input.status,
+      revision: existing.revision + 1,
+      updatedAt: now,
+      submittedAt: input.status === "submitted" ? now : existing.submittedAt,
+      payload: input.payload,
+    };
+    orders[existingIndex] = updated;
+    writeOrders(orders);
+    return updated;
+  }
+
+  let sequence = 1;
+  let orderNumber = formatOrderNumber(input.customerAccount, sequence);
+  while (orders.some(order => order.orderNumber === orderNumber)) {
+    sequence += 1;
+    orderNumber = formatOrderNumber(input.customerAccount, sequence);
+  }
+  const created: StoredOrder<T> = {
+    id: crypto.randomUUID(),
+    orderNumber,
+    customerAccount: input.customerAccount,
+    status: input.status,
+    revision: 1,
+    createdAt: now,
+    updatedAt: now,
+    submittedAt: input.status === "submitted" ? now : null,
+    payload: input.payload,
+  };
+  orders.push(created);
+  writeOrders(orders);
+  return created;
+}
+
+export async function listOrders<T>() {
+  const apiBase = import.meta.env.VITE_ORDER_API_BASE_URL?.replace(/\/$/, "");
+  if (!apiBase) return listBrowserOrders<T>();
+  const response = await fetch(`${apiBase}/orders`, { cache: "no-store" });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json() as Promise<StoredOrder<T>[]>;
+}
+
+export async function saveOrder<T>(input: { id?: string; customerAccount: string; status: OrderStatus; payload: T }) {
+  const apiBase = import.meta.env.VITE_ORDER_API_BASE_URL?.replace(/\/$/, "");
+  if (!apiBase) return saveBrowserOrder(input);
+  const response = await fetch(`${apiBase}/orders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(await response.text());
+  return response.json() as Promise<StoredOrder<T>>;
+}

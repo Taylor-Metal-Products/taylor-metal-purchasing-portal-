@@ -1,7 +1,9 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { safePdfFilename, type OrderStatus, type StoredOrder } from "./order-management";
+import { type OrderStatus, type StoredOrder } from "./order-management";
+import { assetPath } from "./asset-path";
+import { listOrders, saveOrder } from "./browser-order-store";
 import {
   armortechColors,
   getGaugeOptions,
@@ -10,16 +12,18 @@ import {
   kynar500Colors,
   materialLabel,
   normalizeMaterialId,
+  normalizeProductTerminology,
   panelImageCatalog,
   panelProfiles,
   type MaterialFinishId,
+  type PanelId,
   type PanelProfile,
 } from "./panel-config";
 
 type LengthRow = { id: number; feet: number; inches: number; qty: number };
 type Accessory = { id: string; category: string; name: string; unit: string; price: number | null };
 type AddressSuggestion = { label: string };
-type PanelSnapshot = { materialId:MaterialFinishId;finish:string;name:string;coverage:string;gauge:string;color:string;pan?:string;notching?:string;roofPitch?:string;clip?:string;coil?:string;lengths:LengthRow[];totalPanels:number;area:number };
+type PanelSnapshot = { panelId?:PanelId;materialId:MaterialFinishId;finish:string;name:string;coverage:string;gauge:string;color:string;pan?:string;notching?:string;roofPitch?:string;clip?:string;coil?:string;lengths:LengthRow[];totalPanels:number;area:number };
 type OrderDraftPayload = {
   customer:string;customerAccount:string;purchasingContact:string;email:string;billingAddress:string;billingAddressVerified:boolean;paymentTerms:string;
   jobName:string;poNumber:string;projectName:string;receivingContact:string;requestedDate:string;delivery:string;willCallBranch:string;jobsiteAddress:string;jobsiteAddressVerified:boolean;projectNotes:string;
@@ -44,9 +48,9 @@ const flashingGroups = [
 
 const flashingCatalog = flashingGroups.flatMap(group => [...group.items]);
 
-const panProfiles = new Set(["MS-100", "MS-150", "MS-200", "Versa-Span", "Easy-Lock", "Slim-Lock"]);
+const panProfileIds = new Set<PanelId>(["ms-100", "ms-150", "ms-200", "versa-span", "easy-lock", "slim-lock"]);
 const panOptions = ["Striations", "Accent ribs", "Flat pan"];
-const inquiryColors = new Set(["Vintage", "Galvanized", "Zincalume Plus", "Metallic Silver"]);
+const inquiryColors = new Set(["Vintage", "Galvanized", "ZINCALUME® Plus", "Metallic Silver"]);
 
 const accessoryCatalog: Accessory[] = [
   { id:"AIWTMPSAMHT", category:"Underlayment", name:"TMP SAM-HT Ice & Water Underlayment", unit:"Roll", price:88.65 },
@@ -80,33 +84,33 @@ const accessoryCatalog: Accessory[] = [
   { id:"AST150", category:"Fasteners", name:'#12 x 1-1/2" Tek Self Driller Screw - Bag 250', unit:"Bag", price:22.24 },
   { id:"ASPHS150", category:"Fasteners", name:'#10 x 1-1/2" Pancake Head Screws - Bag 250', unit:"Bag", price:12.05 },
   { id:"ASPHS100", category:"Fasteners", name:'#10 x 1" Pancake Head Screws - Bag 250', unit:"Bag", price:9.00 },
-  { id:"ASZEL12", category:"Clips & Snap Z", name:'Snap Z - Easy-Lock 12"', unit:"Each", price:3.75 },
-  { id:"ASZEL16", category:"Clips & Snap Z", name:'Snap Z - Easy-Lock 16"', unit:"Each", price:3.68 },
-  { id:"ASZMS15012", category:"Clips & Snap Z", name:'Snap Z - MS-150 12"', unit:"Each", price:3.67 },
-  { id:"ASZMS15016", category:"Clips & Snap Z", name:'Snap Z - MS-150 16"', unit:"Each", price:3.75 },
-  { id:"ASZMS20018", category:"Clips & Snap Z", name:'Snap Z - MS-200 18"', unit:"Each", price:4.79 },
-  { id:"ASZVS14", category:"Clips & Snap Z", name:'Snap Z - Versa-Span 14"', unit:"Each", price:4.90 },
-  { id:"ASZVS16", category:"Clips & Snap Z", name:'Snap Z - Versa-Span 16"', unit:"Each", price:4.07 },
-  { id:"ASZVS18", category:"Clips & Snap Z", name:'Snap Z - Versa-Span 18"', unit:"Each", price:3.58 },
-  { id:"AVSCLIP-UL", category:"Clips & Snap Z", name:"Versa-Span Fixed Clip - UL Rated", unit:"Each", price:0.37 },
-  { id:"AMSCLIP200NT", category:"Clips & Snap Z", name:'MS-200 2" Fixed Clip with Sealant', unit:"Each", price:0.25 },
-  { id:"AMSCLIPF200NT", category:"Clips & Snap Z", name:'22 ga MS-200 2" UL Floating Clip with Sealant', unit:"Each", price:0.60 },
-  { id:"AMSCLIPF150", category:"Clips & Snap Z", name:'24 ga MS-150 1-1/2" UL Floating Clip', unit:"Each", price:0.59 },
-  { id:"AMSCLIP150", category:"Clips & Snap Z", name:'MS-150 1-1/2" Fixed Clip with Sealant', unit:"Each", price:0.19 },
-  { id:"ASMCLIP", category:"Clips & Snap Z", name:"Slim-Lock Fixed Clip", unit:"Each", price:0.20 },
-  { id:"AFCHR34", category:"Closures", name:'HR-34 34" Formed Foam Closure with Adhesive', unit:"Each", price:0.66 },
-  { id:"AFCEL", category:"Closures", name:'12" Easy-Lock Closed Cell Foam Closure', unit:"Each", price:0.98 },
-  { id:"AFCELV", category:"Closures", name:'12" Easy-Lock Vented Ridge Foam Closure', unit:"Each", price:4.91 },
-  { id:"AFCSL", category:"Closures", name:'16" Easy-Lock Closed Cell Foam Closure', unit:"Each", price:0.81 },
-  { id:"AFCCC", category:"Closures", name:'Classic 7/8" Corrugated Formed Foam Closure', unit:"Each", price:0.71 },
-  { id:"AFCGR7I", category:"Closures", name:"GR-7 Inside / Outside Formed Foam Closure", unit:"Each", price:0.37 },
-  { id:"AFCMSVS", category:"Closures", name:'MS / Versa-Span Foam Closure 18" x 2"', unit:"Each", price:1.86 },
+  { id:"ASZEL12", category:"Clips & Snap Z", name:'Snap Z - Easy-Lock™ 12"', unit:"Each", price:3.75 },
+  { id:"ASZEL16", category:"Clips & Snap Z", name:'Snap Z - Easy-Lock™ 16"', unit:"Each", price:3.68 },
+  { id:"ASZMS15012", category:"Clips & Snap Z", name:'Snap Z - MS-150™ 12"', unit:"Each", price:3.67 },
+  { id:"ASZMS15016", category:"Clips & Snap Z", name:'Snap Z - MS-150™ 16"', unit:"Each", price:3.75 },
+  { id:"ASZMS20018", category:"Clips & Snap Z", name:'Snap Z - MS-200™ 18"', unit:"Each", price:4.79 },
+  { id:"ASZVS14", category:"Clips & Snap Z", name:'Snap Z - Versa-Span™ 14"', unit:"Each", price:4.90 },
+  { id:"ASZVS16", category:"Clips & Snap Z", name:'Snap Z - Versa-Span™ 16"', unit:"Each", price:4.07 },
+  { id:"ASZVS18", category:"Clips & Snap Z", name:'Snap Z - Versa-Span™ 18"', unit:"Each", price:3.58 },
+  { id:"AVSCLIP-UL", category:"Clips & Snap Z", name:"Versa-Span™ Fixed Clip - UL Rated", unit:"Each", price:0.37 },
+  { id:"AMSCLIP200NT", category:"Clips & Snap Z", name:'MS-200™ 2" Fixed Clip with Sealant', unit:"Each", price:0.25 },
+  { id:"AMSCLIPF200NT", category:"Clips & Snap Z", name:'22 ga MS-200™ 2" UL Floating Clip with Sealant', unit:"Each", price:0.60 },
+  { id:"AMSCLIPF150", category:"Clips & Snap Z", name:'24 ga MS-150™ 1-1/2" UL Floating Clip', unit:"Each", price:0.59 },
+  { id:"AMSCLIP150", category:"Clips & Snap Z", name:'MS-150™ 1-1/2" Fixed Clip with Sealant', unit:"Each", price:0.19 },
+  { id:"ASMCLIP", category:"Clips & Snap Z", name:"Slim-Lock™ Fixed Clip", unit:"Each", price:0.20 },
+  { id:"AFCHR34", category:"Closures", name:'HR-34™ 34" Formed Foam Closure with Adhesive', unit:"Each", price:0.66 },
+  { id:"AFCEL", category:"Closures", name:'12" Easy-Lock™ Closed Cell Foam Closure', unit:"Each", price:0.98 },
+  { id:"AFCELV", category:"Closures", name:'12" Easy-Lock™ Vented Ridge Foam Closure', unit:"Each", price:4.91 },
+  { id:"AFCSL", category:"Closures", name:'16" Easy-Lock™ Closed Cell Foam Closure', unit:"Each", price:0.81 },
+  { id:"AFCCC", category:"Closures", name:'Classic 7/8″ Corrugated™ Formed Foam Closure', unit:"Each", price:0.71 },
+  { id:"AFCGR7I", category:"Closures", name:"GR-7™ Inside / Outside Formed Foam Closure", unit:"Each", price:0.37 },
+  { id:"AFCMSVS", category:"Closures", name:'MS / Versa-Span™ Foam Closure 18" x 2"', unit:"Each", price:1.86 },
   { id:"AFCPBRI", category:"Closures", name:"PBR Inside / Outside Formed Foam Closure", unit:"Each", price:0.59 },
-  { id:"AFCT3I", category:"Closures", name:"T-3 Inside / Outside Formed Foam Closure", unit:"Each", price:0.38 },
+  { id:"AFCT3I", category:"Closures", name:"T-3™ Inside / Outside Formed Foam Closure", unit:"Each", price:0.38 },
   { id:"AFCTRI", category:"Closures", name:"Tuff Rib Inside / Outside Formed Foam Closure", unit:"Each", price:0.50 },
   { id:"AFCVV", category:"Closures", name:'Versa Vent Universal Closure 1" x 10 ft', unit:"Each", price:18.36 },
   { id:"S5-S", category:"Snow Retention", name:"S-5-S Clamp", unit:"Each", price:null },
-  { id:"S5-N", category:"Snow Retention", name:"S-5-N Clamp - Easy-Lock / StreamLine", unit:"Each", price:null },
+  { id:"S5-N", category:"Snow Retention", name:"S-5-N Clamp - Easy-Lock™ / StreamLine™", unit:"Each", price:null },
   { id:"S5-U", category:"Snow Retention", name:"S-5-U Universal Clamp", unit:"Each", price:null },
   { id:"COLORGARD", category:"Snow Retention", name:'ColorGard Unpunched - 7 ft 8 in', unit:"Each", price:null },
   { id:"XGARD2", category:"Snow Retention", name:"X-Gard 2.0", unit:"Each", price:null },
@@ -122,10 +126,10 @@ function accessoryGroup(item: Accessory) {
   return null;
 }
 
-function clipOptionsFor(profileName: string) {
-  if (profileName === "MS-200") return ["Fixed Clip", "Low Profile Floating Clip", "3/8 Stand off floating clip"];
-  if (["MS-100", "MS-150"].includes(profileName)) return ["Fixed Clip", "Floating Clip"];
-  if (["Max Corr", "Slim-Lock", "Versa-Span", "Easy-Lock"].includes(profileName)) return ["Clip"];
+function clipOptionsFor(panelId: PanelId) {
+  if (panelId === "ms-200") return ["Fixed Clip", "Low Profile Floating Clip", "3/8 Stand off floating clip"];
+  if (["ms-100", "ms-150"].includes(panelId)) return ["Fixed Clip", "Floating Clip"];
+  if (["max-corr", "slim-lock", "versa-span", "easy-lock"].includes(panelId)) return ["Clip"];
   return [];
 }
 
@@ -141,10 +145,10 @@ const configuredProfiles = panelProfiles
   .flatMap(item => item.coverages.map(size => ({ ...item, coverages: [size] })))
   .sort(profileSort);
 
-function isRoofPanel(name:string){return !["Board and Batten","SmoothWall / Soffit / ShadowLine","Flat Sheet"].includes(name);}
-function allowsNotching(name:string){return new Set(["ms100","ms150","ms200","maxrun","versaspan","cliplock","easylock"]).has(name.toLowerCase().replace(/[^a-z0-9]/g,""))}
+function isRoofPanel(panelId:PanelId){return !["board-and-batten","smoothwall-soffit-shadowline","flat-sheet"].includes(panelId);}
+function allowsNotching(panelId:PanelId){return new Set<PanelId>(["ms-100","ms-150","ms-200","versa-span","easy-lock"]).has(panelId)}
 function pitchType(name:string){const n=name.toLowerCase();if(n.includes("peak cleat"))return "peak";if(n.includes("wide valley")||n.includes("valley wide"))return "wide-valley";if(n.includes("valley"))return "valley";if(n.includes("hook eave"))return "hook-eave";if(n.includes("standard eave"))return "eave";if(n.includes("eave"))return "eave";if(n.includes("ridge"))return "ridge";if(n.includes("peak"))return "peak";if(n.includes("hip"))return "hip";return ""}
-function flashingDrawing(name:string){return `/flashing-line-drawings/${encodeURIComponent(name)}.jpg`}
+function flashingDrawing(name:string){return assetPath(`/flashing-line-drawings/${encodeURIComponent(name)}.jpg`)}
 function FlashingSketch({name}:{name:string}){return <img className="flashingSketch" src={flashingDrawing(name)} alt={`${name} reference profile`}/>}
 function PanelPreview({profile}:{profile?:PanelProfile}){
   const [failed,setFailed]=useState(false);
@@ -153,7 +157,7 @@ function PanelPreview({profile}:{profile?:PanelProfile}){
   return <section className="panelPreview" aria-label={`${profile.name} panel preview`} data-panel-id={profile.id}>
     <div className="panelPreviewHead"><div><span>Panel Preview</span><strong>{profile.name}</strong></div><small>{image&&!failed?"Official Taylor Metal profile image":"Visual reference unavailable"}</small></div>
     <div className={`panelPreviewMedia ${!image||failed?"unavailable":""}`}>
-      {image&&!failed?<img src={image.src} alt={`${image.name} panel profile`} onError={()=>setFailed(true)}/>:<div className="panelPreviewUnavailable"><strong>Panel image not available</strong><span>No verified image is mapped to {profile.name}.</span></div>}
+      {image&&!failed?<img src={assetPath(image.src)} alt={`${image.name} panel profile`} onError={()=>setFailed(true)}/>:<div className="panelPreviewUnavailable"><strong>Panel image not available</strong><span>No verified image is mapped to {profile.name}.</span></div>}
     </div>
   </section>;
 }
@@ -223,7 +227,7 @@ export default function Home() {
   const selectedAccessories = accessoryCatalog.filter(item => accessoryGroup(item) && (accessoryQty[item.id] || 0) > 0);
   const selectedAccessoryUnits = selectedAccessories.reduce((sum, item) => sum + accessoryQty[item.id], 0);
   const filteredAccessories = accessoryCatalog.filter(item => accessoryGroup(item) === activeAccessoryCategory && `${item.name} ${item.id}`.toLowerCase().includes(accessorySearch.toLowerCase()));
-  const clipOptions = clipOptionsFor(profile.name);
+  const clipOptions = clipOptionsFor(profile.id);
   const effectiveClip = selectedClip || clipOptions[0] || "";
   const selectedFlashings = flashingCatalog.filter(name => (flashingQty[name] || 0) > 0);
   const selectedFlashingPieces = selectedFlashings.reduce((sum, name) => sum + flashingQty[name], 0);
@@ -233,7 +237,7 @@ export default function Home() {
   })).filter(group => group.items.length > 0);
   const effectiveFlashingGauge = flashingSameAsPanel ? gauge : flashingGauge;
   const effectiveFlashingColor = flashingSameAsPanel ? color : flashingColor;
-  const currentPanel:PanelSnapshot = {materialId,finish:materialLabel(materialId),name:profile.name,coverage,gauge,color,pan:panProfiles.has(profile.name)?pan:undefined,notching:allowsNotching(profile.name)?notching:undefined,roofPitch:isRoofPanel(profile.name)?roofPitch:undefined,clip:effectiveClip||undefined,coil:materialAvailability.coil,lengths:lengthRows.map(row=>({...row})),totalPanels,area};
+  const currentPanel:PanelSnapshot = {panelId:profile.id,materialId,finish:materialLabel(materialId),name:profile.name,coverage,gauge,color,pan:panProfileIds.has(profile.id)?pan:undefined,notching:allowsNotching(profile.id)?notching:undefined,roofPitch:isRoofPanel(profile.id)?roofPitch:undefined,clip:effectiveClip||undefined,coil:materialAvailability.coil,lengths:lengthRows.map(row=>({...row})),totalPanels,area};
   const allPanels = savedPanels.length ? savedPanels.map((item,index)=>index===activePanelIndex?currentPanel:item) : [currentPanel];
   const orderPanelCount = allPanels.reduce((sum,item)=>sum+item.totalPanels,0);
   const orderArea = allPanels.reduce((sum,item)=>sum+item.area,0);
@@ -248,7 +252,7 @@ export default function Home() {
 
   function chooseProfile(i: number) {
     const nextProfile=profiles[i],nextMaterial=nextProfile.materials[0],nextGauge=nextMaterial.gauges[0];
-    setProfileIndex(i);setCoverage(nextProfile.coverages[0]);setMaterialId(nextMaterial.id);setGauge(nextGauge);setColor(getPanelColors(nextProfile,nextMaterial.id,nextGauge)[0]);setPan("Striations");setNotching("No Notch");setSelectedClip(clipOptionsFor(nextProfile.name)[0]||"");
+    setProfileIndex(i);setCoverage(nextProfile.coverages[0]);setMaterialId(nextMaterial.id);setGauge(nextGauge);setColor(getPanelColors(nextProfile,nextMaterial.id,nextGauge)[0]);setPan("Striations");setNotching("No Notch");setSelectedClip(clipOptionsFor(nextProfile.id)[0]||"");
   }
 
   function chooseMaterial(next:MaterialFinishId){const nextGauge=getGaugeOptions(profile,next)[0];setMaterialId(next);setGauge(nextGauge);setColor(getPanelColors(profile,next,nextGauge)[0]);}
@@ -257,7 +261,8 @@ export default function Home() {
   function addLength() { setLengthRows(rows => [...rows, { id: nextRowId, feet: 0, inches: 0, qty: 0 }]); setNextRowId(id => id + 1); }
   function removeLength(id: number) { if (lengthRows.length > 1) setLengthRows(rows => rows.filter(row => row.id !== id)); }
   function loadPanel(item:PanelSnapshot){
-    const index=Math.max(0,profiles.findIndex(panel=>panel.name===item.name&&panel.coverages[0]===item.coverage));
+    const canonicalName=normalizeProductTerminology(item.name);
+    const index=Math.max(0,profiles.findIndex(panel=>(item.panelId?panel.id===item.panelId:panel.name===canonicalName)&&panel.coverages[0]===item.coverage));
     const nextProfile=profiles[index],requestedMaterial=normalizeMaterialId(item.materialId||item.finish,item.gauge),nextMaterial=nextProfile.materials.some(option=>option.id===requestedMaterial)?requestedMaterial:nextProfile.materials[0].id;
     const allowedGauges=getGaugeOptions(nextProfile,nextMaterial),nextGauge=allowedGauges.includes(item.gauge)?item.gauge:allowedGauges[0],allowedColors=getPanelColors(nextProfile,nextMaterial,nextGauge),nextColor=allowedColors.includes(item.color)?item.color:allowedColors[0];
     setProfileIndex(index);setCoverage(nextProfile.coverages[0]);setMaterialId(nextMaterial);setGauge(nextGauge);setColor(nextColor);setPan(item.pan||"Striations");setNotching((item.notching||"No Notch") as "Notched"|"No Notch");setRoofPitch(item.roofPitch||"");setSelectedClip(item.clip||"");setLengthRows(item.lengths.map(row=>({...row})));setNextRowId(Math.max(...item.lengths.map(row=>row.id),0)+1);
@@ -265,7 +270,7 @@ export default function Home() {
   function addNewPanel(){
     const first=profiles[0];const row={id:nextRowId,feet:0,inches:0,qty:0};
     const firstMaterial=first.materials[0],firstGauge=firstMaterial.gauges[0];
-    const next:PanelSnapshot={materialId:firstMaterial.id,finish:materialLabel(firstMaterial.id),name:first.name,coverage:first.coverages[0],gauge:firstGauge,color:getPanelColors(first,firstMaterial.id,firstGauge)[0],pan:panProfiles.has(first.name)?"Striations":undefined,notching:allowsNotching(first.name)?"No Notch":undefined,roofPitch:isRoofPanel(first.name)?"":undefined,clip:clipOptionsFor(first.name)[0]||undefined,coil:firstMaterial.coil,lengths:[row],totalPanels:0,area:0};
+    const next:PanelSnapshot={panelId:first.id,materialId:firstMaterial.id,finish:materialLabel(firstMaterial.id),name:first.name,coverage:first.coverages[0],gauge:firstGauge,color:getPanelColors(first,firstMaterial.id,firstGauge)[0],pan:panProfileIds.has(first.id)?"Striations":undefined,notching:allowsNotching(first.id)?"No Notch":undefined,roofPitch:isRoofPanel(first.id)?"":undefined,clip:clipOptionsFor(first.id)[0]||undefined,coil:firstMaterial.coil,lengths:[row],totalPanels:0,area:0};
     const panels=[...allPanels,next];setSavedPanels(panels);setActivePanelIndex(panels.length-1);loadPanel(next);
   }
   function switchPanel(index:number){const panels=[...allPanels];setSavedPanels(panels);setActivePanelIndex(index);loadPanel(panels[index]);}
@@ -288,29 +293,27 @@ export default function Home() {
     if(!customerAccount.trim()){setOrderMessage("Enter a customer account number before saving.");return null;}
     setSavingOrder(true);setOrderMessage("");
     try{
-      const response=await fetch("/api/orders",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:orderId||undefined,customerAccount,status,payload:buildDraftPayload()})});
-      if(!response.ok)throw new Error(await response.text());
-      const saved=await response.json() as StoredOrder<OrderDraftPayload>;
+      const saved=await saveOrder<OrderDraftPayload>({id:orderId||undefined,customerAccount,status,payload:buildDraftPayload()});
       setOrderId(saved.id);setOrderNumber(saved.orderNumber);setOrderStatus(saved.status);setOrderRevision(saved.revision);setOrderMessage(status==="submitted"?"Order finalized and saved.":"Draft saved.");
       return saved;
     }catch(error){setOrderMessage(error instanceof Error?error.message:"Unable to save order");return null;}finally{setSavingOrder(false);}
   }
-  async function loadOrderList(){setOrderMessage("");try{const response=await fetch("/api/orders",{cache:"no-store"});if(!response.ok)throw new Error(await response.text());setOrders(await response.json() as StoredOrder<OrderDraftPayload>[]);setShowOrders(true);}catch(error){setOrderMessage(error instanceof Error?error.message:"Unable to load orders");}}
+  async function loadOrderList(){setOrderMessage("");try{setOrders(await listOrders<OrderDraftPayload>());setShowOrders(true);}catch(error){setOrderMessage(error instanceof Error?error.message:"Unable to load orders");}}
   function openStoredOrder(order:StoredOrder<OrderDraftPayload>){
     const value=order.payload;setOrderId(order.id);setOrderNumber(order.orderNumber);setOrderStatus(order.status);setOrderRevision(order.revision);setCustomer(value.customer||"");setCustomerAccount(value.customerAccount||order.customerAccount);setPurchasingContact(value.purchasingContact||"");setEmail(value.email||"");setBillingAddress(value.billingAddress||"");setBillingAddressVerified(Boolean(value.billingAddressVerified));setPaymentTerms(value.paymentTerms||"");setJobName(value.jobName||"");setPoNumber(value.poNumber||"");setProjectName(value.projectName||"");setReceivingContact(value.receivingContact||"");setRequestedDate(value.requestedDate||"");setDelivery(value.delivery||"");setWillCallBranch(value.willCallBranch||"");setJobsiteAddress(value.jobsiteAddress||"");setJobsiteAddressVerified(Boolean(value.jobsiteAddressVerified));setProjectNotes(value.projectNotes||"");setAccessoryQty(value.accessoryQty||{});setFlashingQty(value.flashingQty||{});setFlashingSameAsPanel(value.flashingSameAsPanel!==false);setFlashingGauge(value.flashingGauge||"26 ga");setFlashingColor(value.flashingColor||"Glacier White");setFlashingPitchMode(value.flashingPitchMode||{});setFlashingCustomPitch(value.flashingCustomPitch||{});
-    const panels=value.panels?.length?value.panels:[currentPanel];setSavedPanels(panels.length>1?panels:[]);setActivePanelIndex(0);loadPanel(panels[0]);setStep(0);setSubmitted(order.status==="submitted");setShowOrders(false);setShowPrintSummary(false);setPdfDownload(null);setOrderMessage(`${order.orderNumber} loaded for editing.`);
+    const panels=(value.panels?.length?value.panels:[currentPanel]).map(item=>{const official=panelProfiles.find(candidate=>candidate.id===item.panelId||candidate.name===normalizeProductTerminology(item.name));return {...item,panelId:official?.id??item.panelId,name:official?.name??normalizeProductTerminology(item.name),finish:normalizeProductTerminology(item.finish),color:normalizeProductTerminology(item.color)};});setSavedPanels(panels.length>1?panels:[]);setActivePanelIndex(0);loadPanel(panels[0]);setStep(0);setSubmitted(order.status==="submitted");setShowOrders(false);setShowPrintSummary(false);setPdfDownload(null);setOrderMessage(`${order.orderNumber} loaded for editing.`);
   }
   async function exportPdf(number=orderNumber){
     if(!number){setPdfError("Save the order to assign an order number before exporting PDF.");return null;}
     setPdfError("");
-    try{const response=await fetch("/api/order-pdf",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(buildReportPayload(number))});if(!response.ok)throw new Error(await response.text());const blob=await response.blob(),url=URL.createObjectURL(blob),filename=safePdfFilename(number),link=document.createElement("a");link.href=url;link.download=filename;link.click();setPdfDownload({url,filename});return url;}catch(error){setPdfError(error instanceof Error?error.message:"Unable to generate PDF");return null;}
+    try{const {downloadOrderPdf}=await import("./client-pdf");const download=await downloadOrderPdf(buildReportPayload(number));setPdfDownload(download);const link=document.createElement("a");link.href=download.url;link.download=download.filename;link.click();return download.url;}catch(error){setPdfError(error instanceof Error?error.message:"Unable to generate PDF");return null;}
   }
   async function submitOrder(){setPdfError("");const saved=await persistOrder("submitted");if(!saved)return;setSubmitted(true);await exportPdf(saved.orderNumber);setShowPrintSummary(true);}
 
   if(showPrintSummary){
     const fulfillmentDetail=delivery==="Will call"?`${delivery} - ${willCallBranch}`:delivery==="Deliver to Jobsite"?`${delivery} - ${jobsiteAddress}`:`${delivery} - ${billingAddress}`;
     return <main className="printSummaryPage"><div className="printToolbar"><button onClick={()=>setShowPrintSummary(false)}>← Back to order</button><div><strong>Order summary</strong><span>Review the completed order below.</span></div></div><article className="printSheet">
-      <header className="printHeader"><img src="/taylor-metal-logo.png" alt="Taylor Metal Products"/><div><h1>ORDER SUMMARY</h1><dl><div><dt>Order #</dt><dd>{orderNumber}</dd></div><div><dt>PO #</dt><dd>{poNumber||"Not provided"}</dd></div><div><dt>Date</dt><dd>{new Date().toLocaleDateString()}</dd></div><div><dt>Requested</dt><dd>{requestedDate||"Not set"}</dd></div></dl></div></header>
+      <header className="printHeader"><img src={assetPath("/taylor-metal-logo.png")} alt="Taylor Metal Products"/><div><h1>ORDER SUMMARY</h1><dl><div><dt>Order #</dt><dd>{orderNumber}</dd></div><div><dt>PO #</dt><dd>{poNumber||"Not provided"}</dd></div><div><dt>Date</dt><dd>{new Date().toLocaleDateString()}</dd></div><div><dt>Requested</dt><dd>{requestedDate||"Not set"}</dd></div></dl></div></header>
       <section className="printInfoGrid"><div><h2>PURCHASING COMPANY</h2><p><strong>{customer}</strong><br/>Account: {customerAccount}<br/>Contact: {purchasingContact}<br/>{email}<br/>{billingAddress}<br/>Payment: {paymentTerms}</p></div><div><h2>PROJECT INFORMATION</h2><p><strong>Job: {jobName}</strong><br/>Project: {projectName||"Not provided"}<br/>Receiving: {receivingContact}<br/>Delivery: {fulfillmentDetail}<br/>Submitted by: {purchasingContact||"Not provided"}</p></div></section>
       <section className="printSection"><h2>PANELS</h2><table><thead><tr><th>QTY</th><th>ITEM DESCRIPTION</th><th>GA./MATERIAL</th><th>FINISH</th><th>COLOR</th><th>OPTIONS</th></tr></thead><tbody>{allPanels.map((item,index)=><Fragment key={`${item.name}-${index}`}><tr className="parentRow"><td>{item.totalPanels}</td><td>{index+1}. {item.name} - {item.coverage}</td><td>{item.gauge}</td><td>{item.finish}</td><td>{item.color}</td><td>{[item.pan,item.notching,item.roofPitch?`Pitch ${item.roofPitch}`:"",item.clip].filter(Boolean).join(" | ")}</td></tr>{item.lengths.map((row,rowIndex)=><tr key={`${row.id}-${rowIndex}`}><td>{row.qty}</td><td>Length: {row.feet} ft {row.inches} in</td><td colSpan={4}></td></tr>)}</Fragment>)}</tbody></table><div className="printTotals"><strong>PANEL TOTAL: {orderPanelCount}</strong><strong>COVERAGE AREA: {orderArea.toLocaleString()} SQ FT</strong></div></section>
       <section className="printSection"><h2>ACCESSORIES</h2><table><thead><tr><th>QTY</th><th>UNIT</th><th>TYPE</th><th>ITEM DESCRIPTION</th><th>PART</th></tr></thead><tbody>{selectedAccessories.length?selectedAccessories.map(item=><tr key={item.id}><td>{accessoryQty[item.id]}</td><td>{item.unit}</td><td>{accessoryGroup(item)}</td><td>{item.name}</td><td>{item.id}</td></tr>):<tr><td colSpan={5}>No accessories selected</td></tr>}</tbody></table></section>
@@ -323,7 +326,7 @@ export default function Home() {
   return (
     <main>
       <header className="topbar">
-        <div className="brand"><img className="brandLogo" src="/taylor-metal-logo.png" alt="Taylor Metal Products"/><div><strong>Taylor Metal Products</strong><small>Purchasing Portal Prototype</small></div></div>
+        <div className="brand"><img className="brandLogo" src={assetPath("/taylor-metal-logo.png")} alt="Taylor Metal Products"/><div><strong>Taylor Metal Products</strong><small>Purchasing Portal Prototype</small></div></div>
         <div className="headerActions"><button className="ghost" type="button" onClick={loadOrderList}>Load orders</button><button className="ghost primaryGhost" type="button" onClick={()=>persistOrder("draft")} disabled={savingOrder}>{savingOrder?"Saving…":"Save draft"}</button></div>
       </header>
 
@@ -355,13 +358,13 @@ export default function Home() {
               <Field label="Material / finish"><select value={materialId} onChange={e=>chooseMaterial(e.target.value as MaterialFinishId)}>{profile.materials.map(option=><option key={option.id} value={option.id}>{materialLabel(option.id)}</option>)}</select></Field>
               <Field label="Gauge / thickness"><select value={gauge} onChange={e=>chooseGauge(e.target.value)}>{getGaugeOptions(profile,materialId).map(x=><option key={x}>{x}</option>)}</select></Field>
               <Field label="Color (profile-filtered)"><select value={color} onChange={e=>setColor(e.target.value)}>{colors.map(x=><option key={x}>{x}{inquiryColors.has(x)?" · inquire":""}</option>)}</select></Field>
-              {panProfiles.has(profile.name) && <Field label="Pan option"><select value={pan} onChange={e=>setPan(e.target.value)}>{panOptions.map(x=><option key={x}>{x}</option>)}</select></Field>}
-              {allowsNotching(profile.name)&&<Field label="Panel notching"><select value={notching} onChange={e=>setNotching(e.target.value as "Notched" | "No Notch")}><option>No Notch</option><option>Notched</option></select></Field>}
-              {isRoofPanel(profile.name) && <Field label="Roof pitch"><input value={roofPitch} onChange={e=>setRoofPitch(e.target.value)} inputMode="text" /></Field>}
+              {panProfileIds.has(profile.id) && <Field label="Pan option"><select value={pan} onChange={e=>setPan(e.target.value)}>{panOptions.map(x=><option key={x}>{x}</option>)}</select></Field>}
+              {allowsNotching(profile.id)&&<Field label="Panel notching"><select value={notching} onChange={e=>setNotching(e.target.value as "Notched" | "No Notch")}><option>No Notch</option><option>Notched</option></select></Field>}
+              {isRoofPanel(profile.id) && <Field label="Roof pitch"><input value={roofPitch} onChange={e=>setRoofPitch(e.target.value)} inputMode="text" /></Field>}
               {clipOptions.length>0 && <Field label="Clip"><select value={effectiveClip} onChange={e=>setSelectedClip(e.target.value)}>{clipOptions.map(option=><option key={option}>{option}</option>)}</select></Field>}
             </div>
             <PanelPreview key={profile.id} profile={profile}/>
-            {!panProfiles.has(profile.name) && <div className="noPan"><strong>Profile-controlled pan</strong><span>Pan options are not offered for {profile.name}.</span></div>}
+            {!panProfileIds.has(profile.id) && <div className="noPan"><strong>Profile-controlled pan</strong><span>Pan options are not offered for {profile.name}.</span></div>}
             <div className="lengthBlock">
               <div className="lengthHead"><div><strong>Panel lengths</strong><span>Add a row for every required cut length.</span></div><button onClick={addLength}>+ Add panel length</button></div>
               <div className="lengthLabels"><span>Feet</span><span>Inches</span><span>Quantity</span><span></span></div>
@@ -408,7 +411,7 @@ export default function Home() {
         <aside className="summary">
           <div className="summaryTop"><span>Live order summary</span><b>{complete?"Ready":"Needs attention"}</b></div>
           <div className="productSketch"><div className="roofLine"></div><p>{allPanels.length} panel type{allPanels.length===1?"":"s"}</p><small>{orderPanelCount} panels · {orderArea.toLocaleString()} sq ft</small></div>
-          <dl><div><dt>Current panel</dt><dd>{profile.name} · {coverage}</dd></div><div><dt>Finish</dt><dd>{materialLabel(materialId)}</dd></div><div><dt>Material</dt><dd>{gauge}</dd></div><div><dt>Color</dt><dd>{color}</dd></div>{panProfiles.has(profile.name)&&<div><dt>Pan option</dt><dd>{pan}</dd></div>}{allowsNotching(profile.name)&&<div><dt>Panel notching</dt><dd>{notching}</dd></div>}{isRoofPanel(profile.name)&&<div><dt>Roof pitch</dt><dd>{roofPitch}</dd></div>}{effectiveClip&&<div><dt>Clip</dt><dd>{effectiveClip}</dd></div>}<div><dt>Delivery</dt><dd>{delivery==="Will call"?`${delivery} · ${willCallBranch}`:delivery}</dd></div>{materialAvailability.coil&&<div><dt>Coil width</dt><dd>{materialAvailability.coil}</dd></div>}<div><dt>Panel types</dt><dd>{allPanels.length}</dd></div><div><dt>Order panels</dt><dd>{orderPanelCount}</dd></div><div><dt>Coverage area</dt><dd>{orderArea.toLocaleString()} sq ft</dd></div><div><dt>Accessories</dt><dd>{selectedAccessories.length} items · {selectedAccessoryUnits} units</dd></div><div><dt>Flashing</dt><dd>{selectedFlashings.length} names · {selectedFlashingPieces} pcs</dd></div><div><dt>Flashing finish</dt><dd>{flashingSameAsPanel?"Same as panel":`${effectiveFlashingColor} · ${effectiveFlashingGauge}`}</dd></div><div><dt>Child categories</dt><dd>{addOnCount} selected</dd></div></dl>
+          <dl><div><dt>Current panel</dt><dd>{profile.name} · {coverage}</dd></div><div><dt>Finish</dt><dd>{materialLabel(materialId)}</dd></div><div><dt>Material</dt><dd>{gauge}</dd></div><div><dt>Color</dt><dd>{color}</dd></div>{panProfileIds.has(profile.id)&&<div><dt>Pan option</dt><dd>{pan}</dd></div>}{allowsNotching(profile.id)&&<div><dt>Panel notching</dt><dd>{notching}</dd></div>}{isRoofPanel(profile.id)&&<div><dt>Roof pitch</dt><dd>{roofPitch}</dd></div>}{effectiveClip&&<div><dt>Clip</dt><dd>{effectiveClip}</dd></div>}<div><dt>Delivery</dt><dd>{delivery==="Will call"?`${delivery} · ${willCallBranch}`:delivery}</dd></div>{materialAvailability.coil&&<div><dt>Coil width</dt><dd>{materialAvailability.coil}</dd></div>}<div><dt>Panel types</dt><dd>{allPanels.length}</dd></div><div><dt>Order panels</dt><dd>{orderPanelCount}</dd></div><div><dt>Coverage area</dt><dd>{orderArea.toLocaleString()} sq ft</dd></div><div><dt>Accessories</dt><dd>{selectedAccessories.length} items · {selectedAccessoryUnits} units</dd></div><div><dt>Flashing</dt><dd>{selectedFlashings.length} names · {selectedFlashingPieces} pcs</dd></div><div><dt>Flashing finish</dt><dd>{flashingSameAsPanel?"Same as panel":`${effectiveFlashingColor} · ${effectiveFlashingGauge}`}</dd></div><div><dt>Child categories</dt><dd>{addOnCount} selected</dd></div></dl>
           <div className="statusBox"><span className={inquiry?"amber":"green"}></span><div><strong>{inquiry?"Inquiry configuration":"Configuration valid"}</strong><small>{inquiry?"Availability and pricing review required":"No catalog conflicts detected"}</small></div></div>
         </aside>
       </div>
