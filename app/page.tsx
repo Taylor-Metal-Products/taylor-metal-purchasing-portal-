@@ -169,7 +169,6 @@ export default function Home() {
   const [orderId, setOrderId] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [orderStatus, setOrderStatus] = useState<OrderStatus>("draft");
-  const [orderRevision, setOrderRevision] = useState(0);
   const [orders, setOrders] = useState<StoredOrder<OrderDraftPayload>[]>([]);
   const [showOrders, setShowOrders] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
@@ -218,6 +217,9 @@ export default function Home() {
   const [flashingColor, setFlashingColor] = useState("Glacier White");
   const [flashingPitchMode, setFlashingPitchMode] = useState<Record<string,"panel"|"custom">>({});
   const [flashingCustomPitch, setFlashingCustomPitch] = useState<Record<string,string>>({});
+  const [oilCanningAcknowledged, setOilCanningAcknowledged] = useState(false);
+  const [orderReviewAcknowledged, setOrderReviewAcknowledged] = useState(false);
+  const [acknowledgementError, setAcknowledgementError] = useState("");
 
   const colors = getPanelColors(profile, materialId, gauge);
   const coverageInches = parseFloat(coverage) || 36;
@@ -294,21 +296,32 @@ export default function Home() {
     setSavingOrder(true);setOrderMessage("");
     try{
       const saved=await saveOrder<OrderDraftPayload>({id:orderId||undefined,customerAccount,status,payload:buildDraftPayload()});
-      setOrderId(saved.id);setOrderNumber(saved.orderNumber);setOrderStatus(saved.status);setOrderRevision(saved.revision);setOrderMessage(status==="submitted"?"Order finalized and saved.":"Draft saved.");
+      setOrderId(saved.id);setOrderNumber(saved.orderNumber);setOrderStatus(saved.status);setOrderMessage(status==="submitted"?"Order finalized and saved.":"Draft saved.");
       return saved;
     }catch(error){setOrderMessage(error instanceof Error?error.message:"Unable to save order");return null;}finally{setSavingOrder(false);}
   }
   async function loadOrderList(){setOrderMessage("");try{setOrders(await listOrders<OrderDraftPayload>());setShowOrders(true);}catch(error){setOrderMessage(error instanceof Error?error.message:"Unable to load orders");}}
   function openStoredOrder(order:StoredOrder<OrderDraftPayload>){
-    const value=order.payload;setOrderId(order.id);setOrderNumber(order.orderNumber);setOrderStatus(order.status);setOrderRevision(order.revision);setCustomer(value.customer||"");setCustomerAccount(value.customerAccount||order.customerAccount);setPurchasingContact(value.purchasingContact||"");setEmail(value.email||"");setBillingAddress(value.billingAddress||"");setBillingAddressVerified(Boolean(value.billingAddressVerified));setPaymentTerms(value.paymentTerms||"");setJobName(value.jobName||"");setPoNumber(value.poNumber||"");setProjectName(value.projectName||"");setReceivingContact(value.receivingContact||"");setRequestedDate(value.requestedDate||"");setDelivery(value.delivery||"");setWillCallBranch(value.willCallBranch||"");setJobsiteAddress(value.jobsiteAddress||"");setJobsiteAddressVerified(Boolean(value.jobsiteAddressVerified));setProjectNotes(value.projectNotes||"");setAccessoryQty(value.accessoryQty||{});setFlashingQty(value.flashingQty||{});setFlashingSameAsPanel(value.flashingSameAsPanel!==false);setFlashingGauge(value.flashingGauge||"26 ga");setFlashingColor(value.flashingColor||"Glacier White");setFlashingPitchMode(value.flashingPitchMode||{});setFlashingCustomPitch(value.flashingCustomPitch||{});
-    const panels=(value.panels?.length?value.panels:[currentPanel]).map(item=>{const official=panelProfiles.find(candidate=>candidate.id===item.panelId||candidate.name===normalizeProductTerminology(item.name));return {...item,panelId:official?.id??item.panelId,name:official?.name??normalizeProductTerminology(item.name),finish:normalizeProductTerminology(item.finish),color:normalizeProductTerminology(item.color)};});setSavedPanels(panels.length>1?panels:[]);setActivePanelIndex(0);loadPanel(panels[0]);setStep(0);setSubmitted(order.status==="submitted");setShowOrders(false);setShowPrintSummary(false);setPdfDownload(null);setOrderMessage(`${order.orderNumber} loaded for editing.`);
+    const value=order.payload;setOrderId(order.id);setOrderNumber(order.orderNumber);setOrderStatus(order.status);setCustomer(value.customer||"");setCustomerAccount(value.customerAccount||order.customerAccount);setPurchasingContact(value.purchasingContact||"");setEmail(value.email||"");setBillingAddress(value.billingAddress||"");setBillingAddressVerified(Boolean(value.billingAddressVerified));setPaymentTerms(value.paymentTerms||"");setJobName(value.jobName||"");setPoNumber(value.poNumber||"");setProjectName(value.projectName||"");setReceivingContact(value.receivingContact||"");setRequestedDate(value.requestedDate||"");setDelivery(value.delivery||"");setWillCallBranch(value.willCallBranch||"");setJobsiteAddress(value.jobsiteAddress||"");setJobsiteAddressVerified(Boolean(value.jobsiteAddressVerified));setProjectNotes(value.projectNotes||"");setAccessoryQty(value.accessoryQty||{});setFlashingQty(value.flashingQty||{});setFlashingSameAsPanel(value.flashingSameAsPanel!==false);setFlashingGauge(value.flashingGauge||"26 ga");setFlashingColor(value.flashingColor||"Glacier White");setFlashingPitchMode(value.flashingPitchMode||{});setFlashingCustomPitch(value.flashingCustomPitch||{});
+    const panels=(value.panels?.length?value.panels:[currentPanel]).map(item=>{const official=panelProfiles.find(candidate=>candidate.id===item.panelId||candidate.name===normalizeProductTerminology(item.name));return {...item,panelId:official?.id??item.panelId,name:official?.name??normalizeProductTerminology(item.name),finish:normalizeProductTerminology(item.finish),color:normalizeProductTerminology(item.color)};});setSavedPanels(panels.length>1?panels:[]);setActivePanelIndex(0);loadPanel(panels[0]);setStep(0);setSubmitted(order.status==="submitted");setShowOrders(false);setShowPrintSummary(false);setPdfDownload(null);setOilCanningAcknowledged(false);setOrderReviewAcknowledged(false);setAcknowledgementError("");setOrderMessage(`${order.orderNumber} loaded for editing.`);
   }
   async function exportPdf(number=orderNumber){
     if(!number){setPdfError("Save the order to assign an order number before exporting PDF.");return null;}
     setPdfError("");
     try{const {downloadOrderPdf}=await import("./client-pdf");const download=await downloadOrderPdf(buildReportPayload(number));setPdfDownload(download);const link=document.createElement("a");link.href=download.url;link.download=download.filename;link.click();return download.url;}catch(error){setPdfError(error instanceof Error?error.message:"Unable to generate PDF");return null;}
   }
-  async function submitOrder(){setPdfError("");const saved=await persistOrder("submitted");if(!saved)return;setSubmitted(true);await exportPdf(saved.orderNumber);setShowPrintSummary(true);}
+  async function submitOrder(){
+    const missingAcknowledgements=[
+      !oilCanningAcknowledged?"Oil Canning acknowledgement":"",
+      !orderReviewAcknowledged?"Profile and order review confirmation":"",
+    ].filter(Boolean);
+    if(missingAcknowledgements.length){
+      setAcknowledgementError(`Required before submission: ${missingAcknowledgements.join("; ")}.`);
+      setOrderMessage("");
+      return;
+    }
+    setAcknowledgementError("");setPdfError("");const saved=await persistOrder("submitted");if(!saved)return;setSubmitted(true);await exportPdf(saved.orderNumber);setShowPrintSummary(true);
+  }
 
   if(showPrintSummary){
     const fulfillmentDetail=delivery==="Will call"?`${delivery} - ${willCallBranch}`:delivery==="Deliver to Jobsite"?`${delivery} - ${jobsiteAddress}`:`${delivery} - ${billingAddress}`;
@@ -326,13 +339,13 @@ export default function Home() {
   return (
     <main>
       <header className="topbar">
-        <div className="brand"><img className="brandLogo" src={assetPath("/taylor-metal-logo.png")} alt="Taylor Metal Products"/><div><strong>Taylor Metal Products</strong><small>Purchasing Portal Prototype</small></div></div>
+        <div className="brand"><img className="brandLogo" src={assetPath("/taylor-metal-logo.png")} alt="Taylor Metal Products"/><div><strong>Taylor Metal Products</strong><small>Purchasing Portal</small></div></div>
         <div className="headerActions"><button className="ghost" type="button" onClick={loadOrderList}>Load orders</button><button className="ghost primaryGhost" type="button" onClick={()=>persistOrder("draft")} disabled={savingOrder}>{savingOrder?"Saving…":"Save draft"}</button></div>
       </header>
 
       <section className="hero">
         <div><p className="eyebrow">New material order</p><h1>Build a purchase package</h1><p>Configure panels, attachment items, delivery, and customer information in one guided order.</p></div>
-        <div className="orderPill"><span>{orderStatus}{orderRevision?` · revision ${orderRevision}`:""}</span><strong>{orderNumber||"Enter account number"}</strong></div>
+        <div className="orderPill"><span>Customer Account</span><strong>{customerAccount||"Enter account number"}</strong></div>
       </section>
 
       <nav className="steps" aria-label="Order steps">
@@ -343,7 +356,7 @@ export default function Home() {
         <section className="formCard">
           {step === 0 && <>
             <SectionHead n="01" title="Customer Information" sub="Company and account information for this order." />
-            <div className="grid2"><Field label="Purchasing company"><input value={customer} onChange={e=>setCustomer(e.target.value)} /></Field><Field label="Customer account"><input value={customerAccount} onChange={e=>setCustomerAccount(e.target.value)} onBlur={()=>{if(customerAccount.trim()&&!orderId)void persistOrder("draft")}} /></Field><Field label="Purchasing contact"><input value={purchasingContact} onChange={e=>setPurchasingContact(e.target.value)} /></Field><Field label="Email"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} /></Field><AddressField label="Billing / company yard address" value={billingAddress} onChange={setBillingAddress} verified={billingAddressVerified} onVerifiedChange={setBillingAddressVerified}/><Field label="Payment terms"><select value={paymentTerms} onChange={e=>setPaymentTerms(e.target.value)}><option value="" disabled>Select payment terms</option><option>Use Account</option><option>Pay with Credit Card</option></select></Field></div>
+            <div className="grid2"><Field label="Purchasing company"><input value={customer} onChange={e=>setCustomer(e.target.value)} /></Field><Field label="Customer account"><input value={customerAccount} onChange={e=>setCustomerAccount(e.target.value)} /></Field><Field label="Purchasing contact"><input value={purchasingContact} onChange={e=>setPurchasingContact(e.target.value)} /></Field><Field label="Email"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} /></Field><AddressField label="Billing / company yard address" value={billingAddress} onChange={setBillingAddress} verified={billingAddressVerified} onVerifiedChange={setBillingAddressVerified}/><Field label="Payment terms"><select value={paymentTerms} onChange={e=>setPaymentTerms(e.target.value)}><option value="" disabled>Select payment terms</option><option>Use Account</option><option>Pay with Credit Card</option></select></Field></div>
           </>}
           {step === 1 && <>
             <SectionHead n="02" title="Project Info" sub="Job, receiving contact, requested date, and delivery method." />
@@ -397,8 +410,9 @@ export default function Home() {
             <SectionHead n="06" title="Review & submit" sub="Review the order, then open the complete order summary." />
             <div className="reviewGrid"><Review label="Purchasing company" value={customer}/><Review label="Job" value={jobName}/><Review label="PO Number" value={poNumber || "Not provided"}/><Review label="Project" value={projectName || "Not provided"}/><Review label="Delivery" value={delivery==="Will call"?`${delivery} · ${willCallBranch}`:delivery}/><Review label="Panel types" value={`${allPanels.length} configured`}/><Review label="Panel order" value={`${orderPanelCount} panels · ${orderArea.toLocaleString()} sq ft`}/>{allPanels.map((item,index)=><Review key={`${item.name}-${index}`} label={`Panel ${index+1}`} value={`${item.finish} · ${item.name} · ${item.coverage} · ${item.gauge} · ${item.color}${item.roofPitch?` · Pitch ${item.roofPitch}`:""}`}/>)}<Review label="Accessories" value={`${selectedAccessories.length} items · ${selectedAccessoryUnits} units`}/><Review label="Flashing" value={`${selectedFlashings.length} names · ${selectedFlashingPieces} pieces · ${effectiveFlashingColor} · ${effectiveFlashingGauge}`}/></div>
             <div className="financialSummary"><div><span>Priced accessory subtotal</span><strong>${accessorySubtotal.toFixed(2)}</strong></div><div><span>Taxes / other charges</span><strong>${tax.toFixed(2)}</strong></div><div className="total"><span>Current total</span><strong>${orderTotal.toFixed(2)}</strong></div><small>Unpriced panels, flashings, freight, and inquiry items require Taylor Metal review.</small></div>
-            <label className="ack"><input type="checkbox" defaultChecked/><span>I acknowledge that oil canning can occur in light-gauge metal and is not considered a defect.</span></label>
-            <label className="ack"><input type="checkbox" defaultChecked/><span>I have reviewed the profile, finish, color, quantities, delivery details, and accessory assumptions.</span></label>
+            <label className="ack"><input type="checkbox" checked={oilCanningAcknowledged} onChange={event=>{setOilCanningAcknowledged(event.target.checked);setAcknowledgementError("")}}/><span>I acknowledge that oil canning can occur in light-gauge metal and is not considered a defect.</span></label>
+            <label className="ack"><input type="checkbox" checked={orderReviewAcknowledged} onChange={event=>{setOrderReviewAcknowledged(event.target.checked);setAcknowledgementError("")}}/><span>I have reviewed the profile, finish, color, quantities, delivery details, and accessory assumptions.</span></label>
+            {acknowledgementError&&<div className="ackError" role="alert">{acknowledgementError}</div>}
             <div className="reportActions"><button type="button" className="ghost" onClick={()=>persistOrder("draft")} disabled={savingOrder}>Save changes</button><button type="button" className="ghost" onClick={()=>exportPdf()} disabled={!orderNumber}>Export PDF</button></div>
             {submitted&&pdfDownload&&<div className="submittedNotice"><strong>Order summary created</strong><span>If the automatic download did not begin, use this direct PDF link.</span><a href={pdfDownload.url} download={pdfDownload.filename}>Download PDF order summary</a></div>}
             {pdfError&&<div className="pdfError" role="alert">{pdfError}</div>}
@@ -416,7 +430,7 @@ export default function Home() {
         </aside>
       </div>
       {showOrders&&<div className="orderLibraryBackdrop" role="presentation" onMouseDown={()=>setShowOrders(false)}><section className="orderLibrary" role="dialog" aria-modal="true" aria-label="Saved orders" onMouseDown={event=>event.stopPropagation()}><div className="orderLibraryHead"><div><span>Persistent order storage</span><h2>Saved orders</h2></div><button type="button" onClick={()=>setShowOrders(false)} aria-label="Close saved orders">×</button></div>{orders.length?<div className="orderList">{orders.map(order=><button type="button" key={order.id} onClick={()=>openStoredOrder(order)}><span><strong>{order.orderNumber}</strong><small>{order.customerAccount} · updated {new Date(order.updatedAt).toLocaleString()}</small></span><b className={order.status}>{order.status}</b></button>)}</div>:<div className="emptyOrders">No saved orders yet.</div>}</section></div>}
-      <footer><span>Interactive prototype · Catalog rules dated June/August 2026</span><span>12 in Kynar 500® Contour is excluded</span></footer>
+      <footer><span>Purchasing Portal · Catalog rules dated June/August 2026</span><span>12 in Kynar 500® Contour is excluded</span></footer>
     </main>
   );
 }

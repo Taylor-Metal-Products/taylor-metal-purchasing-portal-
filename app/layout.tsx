@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Taylor Metal Purchasing Portal Prototype",
-  description: "Interactive Taylor Metal product configuration and purchasing portal prototype.",
+  title: "Purchasing Portal",
+  description: "Taylor Metal Products purchasing and product configuration portal.",
   other: {
     "codex-preview": "development",
   },
