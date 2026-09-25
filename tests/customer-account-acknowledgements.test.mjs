@@ -27,14 +27,13 @@ test("official app name and supplied responsive logo assets are present", () => 
   assert.deepEqual([...portalLogo.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   assert.equal(portalLogo.readUInt32BE(16), 2172);
   assert.equal(portalLogo.readUInt32BE(20), 724);
-  assert.match(styles, /\.brandLogo\{width:230px;height:auto;max-height:64px/);
+  assert.match(styles, /\.brandLogo\{width:260px;height:auto;max-height:72px/);
   assert.match(styles, /\.portalLogo\{[^}]*height:auto;[^}]*object-fit:contain/);
-  assert.match(styles, /@media\(max-width:620px\)[\s\S]*\.brandLogo\{width:150px;height:auto;max-height:48px\}/);
+  assert.match(styles, /@media\(max-width:620px\)[\s\S]*\.brandLogo\{width:165px;height:auto;max-height:52px\}/);
 });
 
-test("header actions share typography and enabled buttons have pointer-only hover feedback", () => {
-  assert.match(styles, /\.headerActions \.ghost\{[^}]*font-family:Arial,Helvetica,sans-serif;[^}]*font-weight:750;[^}]*letter-spacing:\.005em;[^}]*text-align:center;[^}]*text-transform:none;[^}]*color:#29475c/);
-  assert.match(styles, /\.headerActions \.primaryGhost\{[^}]*color:#29475c;[^}]*text-shadow:none/);
+test("header action boxes are absent and enabled buttons retain pointer-only hover feedback", () => {
+  assert.doesNotMatch(page, /Loading Orders…|>Load orders<|>Save draft</);
   assert.match(styles, /@media\(hover:hover\) and \(pointer:fine\)\{[\s\S]*button:not\(:disabled\):hover\{[^}]*filter:brightness\(1\.06\)[^}]*translate:0 -1px/);
   assert.doesNotMatch(styles, /@media\(hover:none\)[\s\S]*button[^}]*:hover/);
 });

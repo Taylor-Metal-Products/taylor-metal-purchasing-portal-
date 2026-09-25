@@ -1,9 +1,9 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { type OrderStatus, type StoredOrder } from "./order-management";
+import { type OrderStatus } from "./order-management";
 import { assetPath } from "./asset-path";
-import { listOrders, saveOrder } from "./browser-order-store";
+import { saveOrder } from "./browser-order-store";
 import {
   armortechColors,
   getGaugeOptions,
@@ -180,10 +180,7 @@ export default function Home() {
   const [orderOwnerAccount, setOrderOwnerAccount] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [orderStatus, setOrderStatus] = useState<OrderStatus>("draft");
-  const [orders, setOrders] = useState<StoredOrder<OrderDraftPayload>[]>([]);
-  const [showOrders, setShowOrders] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
-  const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderMessage, setOrderMessage] = useState("");
   const [step, setStep] = useState(0);
   const profiles = configuredProfiles;
@@ -312,17 +309,6 @@ export default function Home() {
       return saved;
     }catch(error){console.error(error);setOrderMessage("We couldn't save your draft. Please try again.");return null;}finally{setSavingOrder(false);}
   }
-  async function loadOrderList(){
-    if(!customerAccount.trim()){setOrderMessage("Enter your customer account number before loading orders.");return;}
-    setLoadingOrders(true);setOrderMessage("");
-    try{setOrders(await listOrders<OrderDraftPayload>(customerAccount));setShowOrders(true);}
-    catch(error){console.error(error);setOrderMessage("We couldn't load your saved orders. Please try again.");}
-    finally{setLoadingOrders(false);}
-  }
-  function openStoredOrder(order:StoredOrder<OrderDraftPayload>){
-    const value=order.payload;setOrderId(order.id);setOrderOwnerAccount(order.customerAccount);setOrderNumber(order.orderNumber);setOrderStatus(order.status);setCustomer(value.customer||"");setCustomerAccount(value.customerAccount||order.customerAccount);setPurchasingContact(value.purchasingContact||"");setEmail(value.email||"");setBillingAddress(value.billingAddress||"");setBillingAddressVerified(Boolean(value.billingAddressVerified));setPaymentTerms(value.paymentTerms||"");setJobName(value.jobName||"");setPoNumber(value.poNumber||"");setProjectName(value.projectName||"");setReceivingContact(value.receivingContact||"");setRequestedDate(value.requestedDate||"");setDelivery(value.delivery||"");setWillCallBranch(value.willCallBranch||"");setJobsiteAddress(value.jobsiteAddress||"");setJobsiteAddressVerified(Boolean(value.jobsiteAddressVerified));setProjectNotes(value.projectNotes||"");setAccessoryQty(value.accessoryQty||{});setFlashingQty(value.flashingQty||{});setFlashingSameAsPanel(value.flashingSameAsPanel!==false);setFlashingGauge(value.flashingGauge||"26 ga");setFlashingColor(value.flashingColor||"Glacier White");setFlashingPitchMode(value.flashingPitchMode||{});setFlashingCustomPitch(value.flashingCustomPitch||{});
-    const panels=(value.panels?.length?value.panels:[currentPanel]).map(item=>{const official=panelProfiles.find(candidate=>candidate.id===item.panelId||candidate.name===normalizeProductTerminology(item.name));return {...item,panelId:official?.id??item.panelId,name:official?.name??normalizeProductTerminology(item.name),finish:normalizeProductTerminology(item.finish),color:normalizeProductTerminology(item.color)};});setSavedPanels(panels.length>1?panels:[]);setActivePanelIndex(0);loadPanel(panels[0]);setStep(0);setSubmitted(order.status==="submitted");setShowOrders(false);setShowPrintSummary(false);setPdfDownload(null);setOilCanningAcknowledged(false);setOrderReviewAcknowledged(false);setAcknowledgementError("");setOrderMessage(`${order.orderNumber} loaded for editing.`);
-  }
   async function exportPdf(number=orderNumber){
     if(!number){setPdfError("Save the order to assign an order number before exporting PDF.");return null;}
     setPdfError("");
@@ -362,7 +348,6 @@ export default function Home() {
           <span className="brandDivider" aria-hidden="true"/>
           <img className="portalLogo" src={assetPath("/purchasing-portal-logo.png")} alt="Purchasing Portal"/>
         </div>
-        <div className="headerActions"><button className="ghost" type="button" onClick={loadOrderList} disabled={loadingOrders||savingOrder}>{loadingOrders?"Loading Orders…":"Load orders"}</button><button className="ghost primaryGhost" type="button" onClick={()=>persistOrder("draft")} disabled={savingOrder||loadingOrders}>{savingOrder?"Saving…":"Save draft"}</button></div>
       </header>
 
       <section className="hero">
@@ -405,7 +390,7 @@ export default function Home() {
               <div className="lengthLabels"><span>Feet</span><span>Inches</span><span>Quantity</span><span></span></div>
               {lengthRows.map((row, i)=><div className="lengthRow" key={row.id}><input aria-label={`Length ${i+1} feet`} type="number" min="0" max="60" value={row.feet||""} onChange={e=>updateLength(row.id,"feet",Number(e.target.value))}/><input aria-label={`Length ${i+1} inches`} type="number" min="0" max="11" value={row.inches||""} onChange={e=>updateLength(row.id,"inches",Number(e.target.value))}/><input aria-label={`Length ${i+1} quantity`} type="number" min="1" value={row.qty||""} onChange={e=>updateLength(row.id,"qty",Number(e.target.value))}/><button aria-label={`Remove length ${i+1}`} onClick={()=>removeLength(row.id)} disabled={lengthRows.length===1}>×</button></div>)}
             </div>
-            <div className={`ruleNote ${inquiry?"warning":""}`}><strong>{inquiry?"Sales review required":"Catalog rule passed"}</strong><span>{profile.note || `${profile.name} is available in ${materialLabel(materialId)} at ${gauge}.`}</span>{materialAvailability.coil && <em>Derived coil: {materialAvailability.coil}</em>}</div>
+            {inquiry&&<div className="ruleNote warning"><strong>Sales review required</strong><span>{profile.note || `${profile.name} is available in ${materialLabel(materialId)} at ${gauge}.`}</span>{materialAvailability.coil && <em>Derived coil: {materialAvailability.coil}</em>}</div>}
           </>}
           {step === 3 && <>
             <SectionHead n="04" title="Accessories" sub="Choose a material category, then select items and enter quantities." />
@@ -451,7 +436,6 @@ export default function Home() {
           <div className="statusBox"><span className={inquiry?"amber":"green"}></span><div><strong>{inquiry?"Inquiry configuration":"Configuration valid"}</strong><small>{inquiry?"Availability and pricing review required":"No catalog conflicts detected"}</small></div></div>
         </aside>
       </div>
-      {showOrders&&<div className="orderLibraryBackdrop" role="presentation" onMouseDown={()=>setShowOrders(false)}><section className="orderLibrary" role="dialog" aria-modal="true" aria-label="Saved orders" onMouseDown={event=>event.stopPropagation()}><div className="orderLibraryHead"><div><span>Customer account {customerAccount}</span><h2>Saved orders</h2></div><button type="button" onClick={()=>setShowOrders(false)} aria-label="Close saved orders">×</button></div>{orders.length?<div className="orderList">{orders.map(order=><button type="button" key={order.id} onClick={()=>openStoredOrder(order)}><span><strong>{order.payload.jobName||"Unnamed job"}</strong><small>{order.orderNumber} · saved {new Date(order.createdAt).toLocaleString()} · updated {new Date(order.updatedAt).toLocaleString()}</small></span><b className={order.status}>{order.status}</b></button>)}</div>:<div className="emptyOrders">No saved orders found for this customer account.</div>}</section></div>}
     </main>
   );
 }

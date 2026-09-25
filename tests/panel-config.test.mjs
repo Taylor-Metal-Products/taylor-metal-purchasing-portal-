@@ -156,6 +156,8 @@ test("panel edit controls reuse mapped panel previews with readable text", () =>
 
 test("deprecated catalog notices are absent from the portal interface", () => {
   const pageSource = readFileSync(path.join(root, "app", "page.tsx"), "utf8");
+  assert.doesNotMatch(pageSource, /Catalog rule passed/i);
+  assert.match(pageSource, /inquiry&&<div className="ruleNote warning"><strong>Sales review required<\/strong>/);
   assert.doesNotMatch(pageSource, /Official Taylor Metal profile image/i);
   assert.doesNotMatch(pageSource, /Purchasing Portal[^\n]*Catalog rules/i);
   assert.doesNotMatch(pageSource, /June\/August 2026/i);

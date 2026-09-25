@@ -62,9 +62,8 @@ test("browser drafts persist complete payloads, update in place, and stay accoun
   assert.deepEqual(store.listBrowserOrders("AC-100")[0].payload, updatedPayload);
 });
 
-test("draft controls expose loading feedback and save the full configurable state", async () => {
+test("draft persistence saves the full configurable state", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /loadingOrders\?"Loading Orders…":"Load orders"/);
   assert.match(page, /Draft saved successfully\./);
   for (const field of ["panels", "accessoryQty", "flashingQty", "flashingPitchMode", "customerAccount", "projectNotes", "delivery"]) {
     assert.match(page, new RegExp(`buildDraftPayload[\\s\\S]*${field}`), `draft payload must include ${field}`);
