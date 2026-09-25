@@ -20,4 +20,19 @@
     <text x="695" y="520" transform="rotate(56 695 520)">VALLEY</text><text x="980" y="560" transform="rotate(-55 980 560)">HIP</text>
     <text x="710" y="785">48'-0&quot;</text><text x="75" y="510" transform="rotate(-90 75 510)">32'-6&quot;</text>
   </g>
+  <g stroke="#326c95" opacity=".3" stroke-width="2">
+    <path d="M55 90h310v190H55zM75 110h270v150H75z"/>
+    <path d="m75 260 135-150 135 150M210 110v150" stroke-width="3"/>
+    <circle cx="210" cy="185" r="58" stroke-dasharray="7 8"/>
+    <path d="M1235 75h290v205h-290zM1260 100l120 70 120-70M1260 255l120-85 120 85M1380 100v155"/>
+    <path d="M1270 310h220M1270 302v16M1490 302v16" marker-start="url(#arrow)" marker-end="url(#arrow)"/>
+    <path d="M104 835h300v95H104zM125 855h255M125 875h205M125 895h235" stroke-dasharray="10 7"/>
+    <circle cx="1460" cy="830" r="72"/><circle cx="1460" cy="830" r="51" stroke-dasharray="8 7"/>
+    <path d="M1388 830h144M1460 758v144"/>
+  </g>
+  <g fill="#326c95" opacity=".34" font-family="Arial, sans-serif" font-size="15" letter-spacing="2">
+    <text x="67" y="78">ROOF DETAIL A</text><text x="1240" y="63">PLAN DETAIL B</text>
+    <text x="1305" y="337">18'-4&quot;</text><text x="125" y="825">GENERAL ROOF NOTES</text>
+    <text x="1428" y="836">N</text>
+  </g>
 </svg>
