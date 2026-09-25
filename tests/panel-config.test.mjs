@@ -48,10 +48,14 @@ test("audited gauges match the current Taylor Metal panel catalog", () => {
   assert.deepEqual(gauges("ms-200", "12 in", "kynar500"), ["26 ga", "24 ga", "22 ga"]);
   assert.deepEqual(gauges("versa-span", "12 in", "kynar500"), ["24 ga", "22 ga"]);
   assert.deepEqual(gauges("tuff-rib", "36 in", "armortech"), ["29 ga", "26 ga"]);
-  assert.deepEqual(gauges("t-3", "36 in", "unpainted-steel"), ["29 ga"]);
-  assert.deepEqual(gauges("gr-7", "36 in", "unpainted-steel"), ["29 ga"]);
+  assert.deepEqual(profile("tuff-rib", "36 in").materials.map(item => item.id), ["armortech"]);
+  assert.deepEqual(gauges("t-3", "36 in", "armortech"), ["29 ga", "26 ga"]);
+  assert.deepEqual(gauges("t-3", "36 in", "kynar500"), ["24 ga", "22 ga"]);
+  assert.deepEqual(gauges("gr-7", "36 in", "armortech"), ["29 ga", "26 ga"]);
+  assert.deepEqual(gauges("gr-7", "36 in", "kynar500"), ["24 ga", "22 ga"]);
   assert.deepEqual(gauges("max-corr", "34-5/8 in", "armortech"), ["29 ga"]);
   assert.deepEqual(gauges("max-corr", "37-1/4 in", "kynar500"), ["24 ga", "22 ga"]);
+  assert.deepEqual(gauges("classic-7-8-corrugated", "32 in", "armortech"), ["26 ga"]);
   assert.deepEqual(gauges("two-and-a-half-corrugated", "24 in", "unpainted-steel"), ["29 ga", "26 ga"]);
   assert.deepEqual(gauges("contour", "12 in", "kynar500"), ["24 ga", "22 ga"]);
 
@@ -67,6 +71,34 @@ test("panel options never broaden beyond the selected profile", () => {
       assert.equal(config.getMaterialAvailability(profile, material.id).id, material.id);
     }
   }
+});
+
+test("exposed-fastener panels expose only audited standard gauge and finish combinations", () => {
+  const expected = new Map([
+    ["tuff-rib|36 in", { armortech: ["29 ga", "26 ga"] }],
+    ["t-3|36 in", { armortech: ["29 ga", "26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["pbr|36 in", { armortech: ["29 ga", "26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["marion-r-panel|36 in", { armortech: ["26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["hr-34|34 in", { armortech: ["26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["gr-7|36 in", { armortech: ["29 ga", "26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["max-corr|34-5/8 in", { armortech: ["29 ga"] }],
+    ["max-corr|37-1/4 in", { armortech: ["26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["classic-7-8-corrugated|32 in", { armortech: ["26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["two-and-a-half-corrugated|24 in", { "unpainted-steel": ["29 ga", "26 ga"] }],
+  ]);
+
+  for (const [key, availability] of expected) {
+    const [id, coverage] = key.split("|");
+    const profile = config.panelProfiles.find(item => item.id === id && item.coverages.includes(coverage));
+    assert.ok(profile, `${key} is missing`);
+    assert.deepEqual(Object.fromEntries(profile.materials.map(item => [item.id, item.gauges])), availability, key);
+  }
+});
+
+test("changing a panel or finish resets dependent selections to valid defaults", () => {
+  const pageSource = readFileSync(path.join(root, "app", "page.tsx"), "utf8");
+  assert.match(pageSource, /setProfileIndex\(i\);setCoverage\(nextProfile\.coverages\[0\]\);setMaterialId\(nextMaterial\.id\);setGauge\(nextGauge\);setColor\(getPanelColors\(nextProfile,nextMaterial\.id,nextGauge\)\[0\]\)/);
+  assert.match(pageSource, /function chooseMaterial\(next:MaterialFinishId\)\{const nextGauge=getGaugeOptions\(profile,next\)\[0\];setMaterialId\(next\);setGauge\(nextGauge\);setColor\(getPanelColors\(profile,next,nextGauge\)\[0\]\);\}/);
 });
 
 test("product terminology is normalized for legacy values", () => {
