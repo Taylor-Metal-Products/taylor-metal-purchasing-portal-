@@ -60,20 +60,20 @@ export async function POST(request: Request) {
         lines.push({
           unit: "Panels",
           qty: length.qty,
-          description: `${panel.name} | ${panel.coverage} | ${length.feet} ft ${length.inches} in${panel.options ? ` | ${panel.options}` : ""}`,
+          description: `${normalizeProductTerminology(panel.name)} | ${panel.coverage} | ${length.feet} ft ${length.inches} in${panel.options ? ` | ${panel.options}` : ""}`,
           gauge: panel.gauge,
           finish: normalizeProductTerminology(panel.finish),
-          color: panel.color,
+          color: normalizeProductTerminology(panel.color),
         });
       }
     }
     if (order.accessories.length) {
       lines.push({ description: "ACCESSORIES", heading: true });
-      for (const item of order.accessories) lines.push({ unit: item.unit, qty: item.qty, description: `${item.name} | ${item.id}` });
+      for (const item of order.accessories) lines.push({ unit: item.unit, qty: item.qty, description: `${normalizeProductTerminology(item.name)} | ${item.id}` });
     }
     if (order.flashings.length) {
       lines.push({ description: "FLASHINGS", heading: true });
-      for (const item of order.flashings) lines.push({ unit: "Each-10Ft", qty: item.qty, description: `${item.name}${item.pitch ? ` | Pitch ${item.pitch}` : ""}`, gauge: item.gauge, finish: "Same as ordered", color: item.color });
+      for (const item of order.flashings) lines.push({ unit: "Each-10Ft", qty: item.qty, description: `${normalizeProductTerminology(item.name)}${item.pitch ? ` | Pitch ${item.pitch}` : ""}`, gauge: item.gauge, finish: "Same as ordered", color: normalizeProductTerminology(item.color) });
     }
     lines.push({ description: "DELIVERY & ORDER NOTES", heading: true });
     lines.push({ unit: "Order", qty: 1, description: `${order.project.delivery} | Receiving: ${order.project.receivingContact}${order.project.notes ? ` | Notes: ${order.project.notes}` : ""}` });
