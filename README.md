@@ -1,6 +1,14 @@
 # Taylor Metal Purchasing Portal
 
-Internal ordering portal for configuring Taylor Metal panels, accessories, and flashings and producing purchasing summaries in browser, PDF, and Excel formats.
+Standalone ordering portal for configuring Taylor Metal panels, accessories, and flashings and producing purchasing summaries and PDFs directly in a browser.
+
+## Standalone site
+
+The production frontend is deployed through GitHub Pages at:
+
+https://taylor-metal-products.github.io/taylor-metal-purchasing-portal-/
+
+The site does not require ChatGPT. The Pages workflow builds the existing React portal from this repository and deploys it automatically whenever `main` changes.
 
 ## Engineering start points
 
@@ -21,6 +29,9 @@ The portal uses proportional review: visual-only edits receive lightweight verif
 
 - `npm run dev` — start the local development server.
 - `npm run build` — build and validate the deployable artifact.
+- `npm run build:pages` — create the standalone GitHub Pages artifact in `pages-dist/`.
+- `npm run preview:pages` — preview the Pages artifact locally.
+- `npm run test:pages` — build the Pages artifact and run the regression suite.
 - `npm test` — build, validate, and run the portal regression tests.
 - `npm run lint` — run ESLint.
 - `npm run validate:artifact` — validate an existing Sites artifact.
@@ -38,7 +49,9 @@ npm run dev
 
 Open the local URL printed by Vite, normally `http://localhost:5173`.
 
-The portal uses the configured Cloudflare D1 `DB` binding for persistent orders. Local development uses the D1 simulation supplied by the Vite/Cloudflare plugin. `.openai/hosting.json` declares the binding name but contains no credentials. No environment variable is required for normal local development. Never commit `.env` files, tokens, API keys, passwords, or downloaded production data.
+The standalone site stores drafts and submitted orders in the browser's `localStorage` by default. Orders persist across refreshes and browser restarts on that device, but they are not automatically shared between employees or devices. PDF generation also runs entirely in the browser.
+
+For shared company-wide order storage, deploy a protected API separately and set `VITE_ORDER_API_BASE_URL` only to its public API origin during the Pages build. The API must expose `GET /orders` and `POST /orders`, implement authentication/authorization, and allow the Pages origin through CORS. Never place database credentials, private API keys, or service secrets in a `VITE_` variable because Vite embeds those values in public browser JavaScript. The existing Cloudflare D1 route remains available for non-static deployments and can be adapted into that protected service.
 
 ## Continue development in Codex
 
@@ -66,17 +79,15 @@ git push -u origin feature/short-description
 
 Repository access is managed in GitHub under **Settings → Collaborators and teams → Add people**. Enter the coworker’s exact GitHub username; do not infer it from an email address.
 
-## Deployment
+## GitHub Pages deployment
 
-Production is hosted through the existing Sites project identified in `.openai/hosting.json`.
+1. In GitHub, open **Settings → Pages** and set **Source** to **GitHub Actions** once.
+2. Merge the reviewed change to `main`.
+3. `.github/workflows/deploy-pages.yml` installs dependencies, runs `npm run test:pages`, uploads `pages-dist`, and deploys it.
+4. Confirm the **Deploy GitHub Pages** workflow succeeds under the repository's **Actions** tab.
+5. Smoke-test the live Pages URL, including product configuration, draft save/load, finalization, and PDF download.
 
-1. Merge the reviewed change to `main`.
-2. Run `npm test` and `npm run lint` against the exact commit being released.
-3. Build and package that exact commit through the managed Sites workflow.
-4. Save and deploy the resulting version to the existing Sites project.
-5. Confirm the deployment reports success, then smoke-test order save/load/edit/finalize and PDF generation on the live URL.
-
-Do not create a second Sites project for this repository. Do not place hosting credentials in Git, the README, or shell scripts.
+The configured Vite base path is `/taylor-metal-purchasing-portal-/`, matching this repository name. If the repository is renamed, update `base` in `vite.pages.config.ts`. Do not commit hosting credentials, `.env` files, database secrets, or downloaded production data.
 
 ## Release rule
 
