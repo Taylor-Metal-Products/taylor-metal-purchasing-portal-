@@ -1,26 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" fill="none">
   <defs>
-    <pattern id="minor" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" stroke="#4f87ad" stroke-width="1" opacity=".22"/></pattern>
-    <pattern id="major" width="120" height="120" patternUnits="userSpaceOnUse"><rect width="120" height="120" fill="url(#minor)"/><path d="M120 0H0V120" stroke="#39759e" stroke-width="1.5" opacity=".28"/></pattern>
+    <pattern id="minor" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" stroke="#4f87ad" stroke-width="1" opacity=".58"/></pattern>
+    <pattern id="major" width="120" height="120" patternUnits="userSpaceOnUse"><rect width="120" height="120" fill="url(#minor)"/><path d="M120 0H0V120" stroke="#39759e" stroke-width="1.5" opacity=".78"/></pattern>
     <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M8 4 0 0v8z" fill="#326c95" opacity=".55"/></marker>
   </defs>
   <rect width="1600" height="1000" fill="url(#major)"/>
-  <g stroke="#326c95" stroke-width="4" opacity=".42">
+  <g stroke="#326c95" stroke-width="4" opacity=".64">
     <path d="M215 720 410 265l380-120 410 145 190 430-565 125z"/>
     <path d="m410 265 415 580M790 145l35 700M1200 290 825 845M410 265l380-120 410 145"/>
     <path d="m215 720 610 125 565-125" stroke-width="7"/>
     <path d="M410 265 825 845 1200 290" stroke-dasharray="18 12"/>
     <path d="M515 352 790 145 1083 372" stroke-width="6"/>
   </g>
-  <g stroke="#326c95" stroke-width="2" opacity=".42" marker-start="url(#arrow)" marker-end="url(#arrow)">
+  <g stroke="#326c95" stroke-width="2" opacity=".56" marker-start="url(#arrow)" marker-end="url(#arrow)">
     <path d="M195 790h1200"/><path d="M150 710V270"/><path d="M430 220h750"/>
   </g>
-  <g fill="#326c95" opacity=".48" font-family="Arial, sans-serif" font-size="24" letter-spacing="3">
-    <text x="735" y="925">ROOF PLAN</text><text x="680" y="202">RIDGE</text><text x="800" y="875">EAVE</text>
-    <text x="695" y="520" transform="rotate(56 695 520)">VALLEY</text><text x="980" y="560" transform="rotate(-55 980 560)">HIP</text>
-    <text x="710" y="785">48'-0&quot;</text><text x="75" y="510" transform="rotate(-90 75 510)">32'-6&quot;</text>
-  </g>
-  <g stroke="#326c95" opacity=".3" stroke-width="2">
+  <g stroke="#326c95" opacity=".48" stroke-width="2">
     <path d="M55 90h310v190H55zM75 110h270v150H75z"/>
     <path d="m75 260 135-150 135 150M210 110v150" stroke-width="3"/>
     <circle cx="210" cy="185" r="58" stroke-dasharray="7 8"/>
@@ -29,10 +24,5 @@
     <path d="M104 835h300v95H104zM125 855h255M125 875h205M125 895h235" stroke-dasharray="10 7"/>
     <circle cx="1460" cy="830" r="72"/><circle cx="1460" cy="830" r="51" stroke-dasharray="8 7"/>
     <path d="M1388 830h144M1460 758v144"/>
-  </g>
-  <g fill="#326c95" opacity=".34" font-family="Arial, sans-serif" font-size="15" letter-spacing="2">
-    <text x="67" y="78">ROOF DETAIL A</text><text x="1240" y="63">PLAN DETAIL B</text>
-    <text x="1305" y="337">18'-4&quot;</text><text x="125" y="825">GENERAL ROOF NOTES</text>
-    <text x="1428" y="836">N</text>
   </g>
 </svg>
