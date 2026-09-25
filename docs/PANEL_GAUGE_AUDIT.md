@@ -25,7 +25,7 @@ The customer-facing selector is generated exclusively from each `PanelProfile.ma
 | Max Corr™ 34-5/8 | ArmorTech™: 29 ga only | — | [Max Corr™](https://taylormetal.com/products/exposed-fastener-panels/max-corr/) |
 | Max Corr™ 37-1/4 | ArmorTech™: 26 ga; Kynar 500®: 24, 22 ga; aluminum: .032″ | .040″ aluminum | [Max Corr™](https://taylormetal.com/products/exposed-fastener-panels/max-corr/) |
 | Classic 7/8″ Corrugated™ (Salem portal profile) | ArmorTech™: 26 ga; Kynar 500®: 24, 22 ga; aluminum: .032″ | 20, 18 ga; .040″, .050″, .063″ aluminum | [Salem](https://taylormetal.com/products/exposed-fastener-panels/classic-7-8-corrugated-produced-in-salem/), [Riverside](https://taylormetal.com/products/exposed-fastener-panels/classic-7-8-corrugated-produced-in-riverside/), [Spokane](https://taylormetal.com/products/exposed-fastener-panels/classic-7-8-corrugated-produced-in-spokane/) |
-| 2-1/2″ Corrugated | Unpainted ZINCALUME® Plus / Galvanized: 29, 26 ga | — | [2-1/2″ Corrugated](https://taylormetal.com/products/exposed-fastener-panels/2-1-2-corrugated/) |
+| 2-1/2″ Corrugated | ZINCALUME® or Galvanized: 29, 26 ga | — | [2-1/2″ Corrugated](https://taylormetal.com/products/exposed-fastener-panels/2-1-2-corrugated/) |
 | Flat Sheet | Kynar 500®: 24, 22 ga; aluminum: .032″ | — | [Flat Sheet data sheet](https://taylormetal.com/wp-content/uploads/2021/11/Flat-Sheet.pdf) |
 
 ## Audit decisions
@@ -35,12 +35,12 @@ The customer-facing selector is generated exclusively from each `PanelProfile.ma
 - The portal's Classic 7/8″ Corrugated™ entry uses its existing Salem source page rather than combining regional variants. Riverside and Spokane publish different standard gauges, so those variants remain flagged for a future location-aware product split.
 - .040″, .050″, and .063″ aluminum never appear in the normal selector when the product page says “please inquire.”
 - 20 and 18 ga steel never appear in the normal selector when listed as custom, special request, heavier gauge, or inquiry-only.
-- 2-1/2″ Corrugated uses an unpainted-steel finish because its current material specifications list bare ZINCALUME® Plus and Galvanized rather than ArmorTech™.
+- 2-1/2″ Corrugated uses an unpainted-steel finish with customer-facing ZINCALUME® or Galvanized choices rather than ArmorTech™.
 
 ## Exposed-fastener items requiring review
 
 - **User-confirmed correction:** T-3™, GR-7™, and PBR include standard 29 ga ArmorTech™. This operational confirmation takes precedence where the public Material Specifications omit 29 ga.
 - **HR-34™ regional difference:** the existing portal profile and source are the Oregon product, which lists 26 ga ArmorTech™ as standard. The California page starts at 24 ga. A location-aware split is needed if the same selector must serve both plants.
 - **Classic 7/8″ Corrugated™ regional difference:** Salem, Riverside, and Spokane publish different standard gauges. The existing portal profile remains tied to Salem; the other branches are not merged into it.
-- **2-1/2″ Corrugated:** this is a documented product-specific exception to the painted-finish mapping. Its page lists only bare 29/26 ga ZINCALUME® Plus and Galvanized, so those existing unpainted choices remain.
+- **2-1/2″ Corrugated:** this is a documented product-specific exception to the painted-finish mapping. Its standard customer choices are ZINCALUME® or Galvanized in 29/26 ga.
 

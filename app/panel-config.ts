@@ -76,7 +76,7 @@ export const materialFinishLabels: Record<MaterialFinishId, string> = {
   armortech: "ArmorTech™",
   kynar500: "Kynar 500®",
   "kynar500-aluminum": "Kynar 500® Painted Aluminum",
-  "unpainted-steel": "ZINCALUME® Plus / Galvanized Steel",
+  "unpainted-steel": "ZINCALUME® or Galvanized",
 };
 
 export const armortechColors = [
@@ -156,7 +156,7 @@ export const panelProfiles: PanelProfile[] = [
   { id: "max-corr", name: "Max Corr™", coverages: ["34-5/8 in"], materials: [ARMORTECH(["29 ga"])], group: "S4", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/max-corr/" },
   { id: "max-corr", name: "Max Corr™", coverages: ["37-1/4 in"], materials: [ARMORTECH(), KYNAR_500_STEEL("43 in"), WITH_SPECIAL(KYNAR_500_ALUMINUM("43 in"), [".040″ Aluminum"])], group: "S4", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/max-corr/" },
   { id: "classic-7-8-corrugated", name: "Classic 7/8″ Corrugated™", coverages: ["32 in"], materials: [ARMORTECH(), WITH_SPECIAL(KYNAR_500_STEEL("43 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("43 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], group: "S5", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/classic-7-8-corrugated-produced-in-salem/" },
-  { id: "two-and-a-half-corrugated", name: "2-1/2″ Corrugated", coverages: ["24 in"], materials: [UNPAINTED_STEEL(["29 ga", "26 ga"])], note: "ZINCALUME® Plus or Galvanized; wall use", group: "S6", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/2-1-2-corrugated/" },
+  { id: "two-and-a-half-corrugated", name: "2-1/2″ Corrugated", coverages: ["24 in"], materials: [UNPAINTED_STEEL(["29 ga", "26 ga"])], note: "ZINCALUME® or Galvanized; wall use", group: "S6", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/2-1-2-corrugated/" },
   { id: "easy-lock", name: "Easy-Lock™", coverages: ["12 in"], materials: [KYNAR_500_STEEL("16 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("16 in")], sourceUrl: "https://taylormetal.com/products/standing-seam-panels/easy-lock/" },
   { id: "easy-lock", name: "Easy-Lock™", coverages: ["16 in"], materials: [KYNAR_500_STEEL("20 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("20 in")], sourceUrl: "https://taylormetal.com/products/standing-seam-panels/easy-lock/" },
   { id: "ms-100", name: "MS-100™", coverages: ["13 in"], materials: [WITH_SPECIAL(KYNAR_500_STEEL("16 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("16 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], sourceUrl: "https://taylormetal.com/products/mechanically-seamed-panels/ms-100/" },
@@ -187,7 +187,7 @@ export function getPanelColors(profile: PanelProfile, id: MaterialFinishId, gaug
   const availability = getMaterialAvailability(profile, id);
   const override = availability.colorsByGauge?.[gauge];
   if (override) return override;
-  if (id === "unpainted-steel") return ["ZINCALUME® Plus", "Galvanized"];
+  if (id === "unpainted-steel") return ["ZINCALUME®", "Galvanized"];
   if (id === "armortech") {
     return profile.group === "S6" ? ["ZINCALUME®", "Galvanized"] : armortechColors;
   }

@@ -57,6 +57,10 @@ test("audited gauges match the current Taylor Metal panel catalog", () => {
   assert.deepEqual(gauges("max-corr", "37-1/4 in", "kynar500"), ["24 ga", "22 ga"]);
   assert.deepEqual(gauges("classic-7-8-corrugated", "32 in", "armortech"), ["26 ga"]);
   assert.deepEqual(gauges("two-and-a-half-corrugated", "24 in", "unpainted-steel"), ["29 ga", "26 ga"]);
+  const corrugated = profile("two-and-a-half-corrugated", "24 in");
+  assert.equal(config.materialLabel("unpainted-steel"), "ZINCALUME® or Galvanized");
+  assert.deepEqual(config.getPanelColors(corrugated, "unpainted-steel", "29 ga"), ["ZINCALUME®", "Galvanized"]);
+  assert.deepEqual(config.getPanelColors(corrugated, "unpainted-steel", "26 ga"), ["ZINCALUME®", "Galvanized"]);
   assert.deepEqual(gauges("contour", "12 in", "kynar500"), ["24 ga", "22 ga"]);
 
   for (const item of config.panelProfiles) {
