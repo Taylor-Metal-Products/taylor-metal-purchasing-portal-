@@ -82,6 +82,35 @@ test("configured panel previews use existing local assets", () => {
   }
 });
 
+test("panel edit controls reuse mapped panel previews with readable text", () => {
+  const pageSource = readFileSync(path.join(root, "app", "page.tsx"), "utf8");
+  const styleSource = readFileSync(path.join(root, "app", "globals.css"), "utf8");
+  assert.match(pageSource, /function PanelQueueThumbnail/);
+  assert.match(pageSource, /panelImageCatalog\[panelId\]/);
+  assert.match(pageSource, /<PanelQueueThumbnail panel=\{item\}\/>/);
+  assert.match(styleSource, /\.panelQueueCopy strong\{color:#173f5d/);
+  assert.match(styleSource, /\.panelQueueThumbnail img\{[^}]*object-fit:contain/);
+});
+
+test("deprecated catalog notices are absent from the portal interface", () => {
+  const pageSource = readFileSync(path.join(root, "app", "page.tsx"), "utf8");
+  assert.doesNotMatch(pageSource, /Official Taylor Metal profile image/i);
+  assert.doesNotMatch(pageSource, /Purchasing Portal[^\n]*Catalog rules/i);
+  assert.doesNotMatch(pageSource, /June\/August 2026/i);
+  assert.doesNotMatch(pageSource, /12\s*in[^\n]*Kynar[^\n]*Contour[^\n]*excluded/i);
+});
+
+test("portal background uses the responsive roof-plan blueprint underlay", () => {
+  const styleSource = readFileSync(path.join(root, "app", "globals.css"), "utf8");
+  const blueprintSource = readFileSync(path.join(root, "public", "roof-blueprint.svg"), "utf8");
+  assert.match(styleSource, /url\('\/roof-blueprint\.svg'\)/);
+  assert.match(styleSource, /background-blend-mode:normal,multiply,normal,normal/);
+  assert.match(blueprintSource, /ROOF PLAN/);
+  assert.match(blueprintSource, /RIDGE/);
+  assert.match(blueprintSource, /VALLEY/);
+  assert.match(blueprintSource, /GENERAL ROOF NOTES/);
+});
+
 test("generated outputs use the shared terminology normalizer", () => {
   for (const relative of ["app/api/order-pdf/route.ts", "app/api/order-excel/route.ts", "app/client-pdf.ts"]) {
     const outputSource = readFileSync(path.join(root, relative), "utf8");
