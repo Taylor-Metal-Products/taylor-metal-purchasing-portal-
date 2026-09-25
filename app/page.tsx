@@ -155,11 +155,21 @@ function PanelPreview({profile}:{profile?:PanelProfile}){
   if(!profile)return <section className="panelPreview panelPreviewEmpty"><div className="panelPreviewUnavailable">Select a panel to view profile.</div></section>;
   const image=panelImageCatalog[profile.id];
   return <section className="panelPreview" aria-label={`${profile.name} panel preview`} data-panel-id={profile.id}>
-    <div className="panelPreviewHead"><div><span>Panel Preview</span><strong>{profile.name}</strong></div><small>{image&&!failed?"Official Taylor Metal profile image":"Visual reference unavailable"}</small></div>
+    <div className="panelPreviewHead"><div><span>Panel Preview</span><strong>{profile.name}</strong></div>{(!image||failed)&&<small>Visual reference unavailable</small>}</div>
     <div className={`panelPreviewMedia ${!image||failed?"unavailable":""}`}>
       {image&&!failed?<img src={assetPath(image.src)} alt={`${image.name} panel profile`} onError={()=>setFailed(true)}/>:<div className="panelPreviewUnavailable"><strong>Panel image not available</strong><span>No verified image is mapped to {profile.name}.</span></div>}
     </div>
   </section>;
+}
+function PanelQueueThumbnail({panel}:{panel:PanelSnapshot}){
+  const [failed,setFailed]=useState(false);
+  const panelId=panel.panelId??panelProfiles.find(candidate=>candidate.name===normalizeProductTerminology(panel.name))?.id;
+  const image=panelId?panelImageCatalog[panelId]:undefined;
+  return <div className={`panelQueueThumbnail ${!image||failed?"unavailable":""}`} aria-hidden="true">
+    {image&&!failed
+      ?<img src={assetPath(image.src)} alt="" onError={()=>setFailed(true)}/>
+      :<span className="panelQueueThumbnailFallback"><i></i><i></i><i></i></span>}
+  </div>;
 }
 export default function Home() {
   const [submitted, setSubmitted] = useState(false);
@@ -369,7 +379,7 @@ export default function Home() {
           {step === 2 && <>
             <SectionHead n="03" title="Panel Order" sub="Configure the panel, roof options, and required lengths." />
             <div className="panelOrderHeader"><div><strong>Panels in this order</strong><span>{allPanels.length} panel type{allPanels.length===1?"":"s"}</span></div><button type="button" onClick={addNewPanel}>+ New Panel</button></div>
-            <div className="panelQueue">{allPanels.map((item,index)=><div key={`${index}-${item.name}`} className={index===activePanelIndex?"current":""} role="button" tabIndex={0} aria-label={`Edit panel ${index+1}`} onClick={()=>switchPanel(index)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();switchPanel(index)}}}><span>Panel {index+1}{index===activePanelIndex?" · editing":" · click to edit"}</span><strong>{item.name} · {item.coverage}</strong><small>{item.totalPanels} panels · {item.color}</small>{allPanels.length>1&&<button type="button" onClick={event=>{event.stopPropagation();removePanel(index)}} aria-label={`Remove panel ${index+1}`}>×</button>}</div>)}</div>
+            <div className="panelQueue">{allPanels.map((item,index)=><div key={`${index}-${item.name}`} className={index===activePanelIndex?"current":""} role="button" tabIndex={0} aria-label={`Edit panel ${index+1}: ${item.name}`} onClick={()=>switchPanel(index)} onKeyDown={event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();switchPanel(index)}}}><PanelQueueThumbnail panel={item}/><div className="panelQueueCopy"><span>Panel {index+1}{index===activePanelIndex?" · editing":" · click to edit"}</span><strong>{item.name} · {item.coverage}</strong><small>{item.totalPanels} panels · {item.color}</small></div>{allPanels.length>1&&<button type="button" onClick={event=>{event.stopPropagation();removePanel(index)}} aria-label={`Remove panel ${index+1}`}>×</button>}</div>)}</div>
             <div className="grid2">
               <Field label="Panel profile"><select value={profileIndex} onChange={e=>chooseProfile(Number(e.target.value))}>{profiles.map((p,i)=><option key={`${p.name}-${p.coverages[0]}-${i}`} value={i}>{p.name} · {p.coverages[0]}</option>)}</select></Field>
               <Field label="Material / finish"><select value={materialId} onChange={e=>chooseMaterial(e.target.value as MaterialFinishId)}>{profile.materials.map(option=><option key={option.id} value={option.id}>{materialLabel(option.id)}</option>)}</select></Field>
@@ -434,7 +444,6 @@ export default function Home() {
         </aside>
       </div>
       {showOrders&&<div className="orderLibraryBackdrop" role="presentation" onMouseDown={()=>setShowOrders(false)}><section className="orderLibrary" role="dialog" aria-modal="true" aria-label="Saved orders" onMouseDown={event=>event.stopPropagation()}><div className="orderLibraryHead"><div><span>Persistent order storage</span><h2>Saved orders</h2></div><button type="button" onClick={()=>setShowOrders(false)} aria-label="Close saved orders">×</button></div>{orders.length?<div className="orderList">{orders.map(order=><button type="button" key={order.id} onClick={()=>openStoredOrder(order)}><span><strong>{order.orderNumber}</strong><small>{order.customerAccount} · updated {new Date(order.updatedAt).toLocaleString()}</small></span><b className={order.status}>{order.status}</b></button>)}</div>:<div className="emptyOrders">No saved orders yet.</div>}</section></div>}
-      <footer><span>Purchasing Portal · Catalog rules dated June/August 2026</span><span>12 in Kynar 500® Contour is excluded</span></footer>
     </main>
   );
 }
