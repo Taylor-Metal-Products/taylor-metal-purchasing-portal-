@@ -6,6 +6,11 @@ The portal collects purchasing and project details, builds one or more valid pan
 
 ## Architecture
 
+- `index.html`, `app/client-main.tsx`, and `vite.pages.config.ts` provide the standalone GitHub Pages entry point.
+- `app/browser-order-store.ts` uses browser storage by default and can call a separately hosted protected order API through `VITE_ORDER_API_BASE_URL`.
+- `app/client-pdf.ts` generates the order PDF in the browser, so GitHub Pages does not need a server route.
+- The existing server API routes remain available for deployments that provide Cloudflare D1, but the Pages frontend does not depend on them.
+
 - `app/page.tsx` composes the order workflow, state, calculations, and printable summary.
 - `app/panel-config.ts` is the product-configuration source of truth.
 - `app/api/order-pdf/route.ts` creates PDF order summaries.
@@ -22,11 +27,11 @@ Persistent order records are stored in the existing Cloudflare D1 layer through 
 1. The valid selection path is Panel Profile → Material/Finish → Gauge or Thickness → Color.
 2. A profile exposes only combinations declared for that profile in `panel-config.ts`.
 3. Changing a parent selection must reset any child selection that is no longer valid.
-4. Armortech™ uses 26 ga in the current configuration.
+4. ArmorTech™ uses 26 ga in the current configuration.
 5. Kynar 500® steel may use 24 ga or 22 ga only where the selected profile declares it.
 6. Kynar 500® Painted Aluminum uses `.032″ Aluminum` only where declared.
 7. A missing preview image must produce “Panel image not available”; another panel image must not be substituted.
-8. Terminology must be normalized in UI and generated output: `Armortech™`, `Kynar 500®`, and `Kynar 500® Painted Aluminum`.
+8. Terminology must be normalized in UI and generated output: `ArmorTech™`, `Kynar 500®`, and `Kynar 500® Painted Aluminum`.
 9. Panel quantity is the sum of length-row quantities.
 10. Linear feet is the sum of `(feet + inches / 12) × quantity` for each length row.
 11. Coverage area is rounded from `(coverage inches / 12) × total linear feet`.
