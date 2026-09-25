@@ -104,11 +104,10 @@ test("portal background uses the responsive roof-plan blueprint underlay", () =>
   const styleSource = readFileSync(path.join(root, "app", "globals.css"), "utf8");
   const blueprintSource = readFileSync(path.join(root, "public", "roof-blueprint.svg"), "utf8");
   assert.match(styleSource, /url\('\/roof-blueprint\.svg'\)/);
-  assert.match(styleSource, /background-blend-mode:normal,multiply,normal,normal/);
-  assert.match(blueprintSource, /ROOF PLAN/);
-  assert.match(blueprintSource, /RIDGE/);
-  assert.match(blueprintSource, /VALLEY/);
-  assert.match(blueprintSource, /GENERAL ROOF NOTES/);
+  assert.match(styleSource, /background:url\('\/roof-blueprint\.svg'\) center 35%\/cover no-repeat;opacity:\.12/);
+  assert.match(styleSource, /filter:contrast\(\.85\) brightness\(1\.05\)/);
+  assert.doesNotMatch(blueprintSource, /<text\b/i);
+  assert.doesNotMatch(blueprintSource, /ROOF PLAN|RIDGE|VALLEY|EAVE|GENERAL ROOF NOTES/i);
 });
 
 test("generated outputs use the shared terminology normalizer", () => {
