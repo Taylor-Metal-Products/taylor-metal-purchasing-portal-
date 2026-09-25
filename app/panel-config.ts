@@ -1,4 +1,4 @@
-export type MaterialFinishId = "armortech" | "kynar500" | "kynar500-aluminum";
+export type MaterialFinishId = "armortech" | "kynar500" | "kynar500-aluminum" | "unpainted-steel";
 
 export type PanelId =
   | "streamline"
@@ -25,6 +25,7 @@ export type PanelId =
 export type MaterialAvailability = {
   id: MaterialFinishId;
   gauges: string[];
+  specialOrderGauges?: string[];
   coil?: string;
   colorsByGauge?: Partial<Record<string, string[]>>;
 };
@@ -36,6 +37,7 @@ export type PanelProfile = {
   materials: MaterialAvailability[];
   note?: string;
   group?: string;
+  sourceUrl?: string;
 };
 
 export type PanelImageAsset = {
@@ -74,6 +76,7 @@ export const materialFinishLabels: Record<MaterialFinishId, string> = {
   armortech: "ArmorTech™",
   kynar500: "Kynar 500®",
   "kynar500-aluminum": "Kynar 500® Painted Aluminum",
+  "unpainted-steel": "ZINCALUME® Plus / Galvanized Steel",
 };
 
 export const armortechColors = [
@@ -96,12 +99,12 @@ const aluminumColors = kynar500Colors.filter(color => ![
   "Copper Penny", "Vintage", "Galvanized", "ZINCALUME® Plus",
 ].includes(color));
 
-const ARMORTECH_26 = (): MaterialAvailability => ({
+const ARMORTECH = (gauges: ("29 ga" | "26 ga")[] = ["26 ga"]): MaterialAvailability => ({
   id: "armortech",
-  gauges: ["26 ga"],
+  gauges,
 });
 
-type Kynar500SteelGauge = "24 ga" | "22 ga";
+type Kynar500SteelGauge = "26 ga" | "24 ga" | "22 ga";
 
 const KYNAR_500_STEEL = (
   coil: string,
@@ -120,6 +123,16 @@ const KYNAR_500_ALUMINUM = (coil: string): MaterialAvailability => ({
   coil,
 });
 
+const UNPAINTED_STEEL = (gauges: ("29 ga" | "26 ga" | "24 ga" | "22 ga")[]): MaterialAvailability => ({
+  id: "unpainted-steel",
+  gauges,
+});
+
+const WITH_SPECIAL = (material: MaterialAvailability, specialOrderGauges: string[]): MaterialAvailability => ({
+  ...material,
+  specialOrderGauges,
+});
+
 /*
  * Panel availability is maintained here. Each profile explicitly opts into its
  * material systems. KYNAR_500_STEEL accepts a per-profile gauge list, such as
@@ -127,35 +140,35 @@ const KYNAR_500_ALUMINUM = (coil: string): MaterialAvailability => ({
  * an individual gauge when Taylor Metal supplies revised manufacturing rules.
  */
 export const panelProfiles: PanelProfile[] = [
-  { id: "streamline", name: "StreamLine™", coverages: ["12 in", "16 in"], materials: [ARMORTECH_26()], group: "S1" },
-  { id: "slim-lock", name: "Slim-Lock™", coverages: ["16 in nominal"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("20 in"), KYNAR_500_ALUMINUM("20 in")], note: "Accent ribs, striations or flat pan" },
-  { id: "ms-150", name: "MS-150™", coverages: ["12 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("16 in")], note: "Accent ribs, striations or flat pan" },
-  { id: "ms-150", name: "MS-150™", coverages: ["16 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("20 in"), KYNAR_500_ALUMINUM("20 in")], note: "Accent ribs, striations or flat pan" },
-  { id: "ms-150", name: "MS-150™", coverages: ["20 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("24 in"), KYNAR_500_ALUMINUM("24 in")], note: "Accent ribs, striations or flat pan" },
-  { id: "board-and-batten", name: "Board and Batten Siding Panel", coverages: ["12 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("16 in")], group: "S1" },
-  { id: "board-and-batten", name: "Board and Batten Siding Panel", coverages: ["16 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("20 in"), KYNAR_500_ALUMINUM("20 in")], group: "S1" },
-  { id: "tuff-rib", name: "Tuff Rib", coverages: ["36 in"], materials: [ARMORTECH_26()], group: "S2" },
-  { id: "t-3", name: "T-3™", coverages: ["36 in"], materials: [ARMORTECH_26()], note: "Standard or wall profile", group: "S2" },
-  { id: "pbr", name: "PBR", coverages: ["36 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("43 in"), KYNAR_500_ALUMINUM("43 in")], group: "S4" },
-  { id: "marion-r-panel", name: "Marion “R” Panel™", coverages: ["36 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("43 in"), KYNAR_500_ALUMINUM("43 in")], group: "S4" },
-  { id: "hr-34", name: "HR-34™", coverages: ["34 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("43 in"), KYNAR_500_ALUMINUM("43 in")], group: "S4" },
-  { id: "gr-7", name: "GR-7™", coverages: ["36 in"], materials: [ARMORTECH_26()], group: "S2" },
-  { id: "max-corr", name: "Max Corr™", coverages: ["34-5/8 in", "37-1/4 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("43 in"), KYNAR_500_ALUMINUM("43 in")], group: "S4" },
-  { id: "classic-7-8-corrugated", name: "Classic 7/8″ Corrugated™", coverages: ["32 in"], materials: [ARMORTECH_26(), KYNAR_500_STEEL("43 in"), KYNAR_500_ALUMINUM("43 in")], group: "S5" },
-  { id: "two-and-a-half-corrugated", name: "2-1/2″ Corrugated", coverages: ["24 in"], materials: [ARMORTECH_26()], note: "Wall use", group: "S6" },
-  { id: "easy-lock", name: "Easy-Lock™", coverages: ["12 in"], materials: [KYNAR_500_STEEL("16 in")] },
-  { id: "easy-lock", name: "Easy-Lock™", coverages: ["16 in"], materials: [KYNAR_500_STEEL("20 in"), KYNAR_500_ALUMINUM("20 in")] },
-  { id: "easy-lock", name: "Easy-Lock™", coverages: ["18 in"], materials: [KYNAR_500_STEEL("24 in"), KYNAR_500_ALUMINUM("24 in")], note: "Inquiry / availability review" },
-  { id: "ms-100", name: "MS-100™", coverages: ["13 in"], materials: [KYNAR_500_STEEL("16 in")] },
-  { id: "ms-100", name: "MS-100™", coverages: ["17 in"], materials: [KYNAR_500_STEEL("20 in"), KYNAR_500_ALUMINUM("20 in")] },
-  { id: "ms-200", name: "MS-200™", coverages: ["14 in"], materials: [KYNAR_500_STEEL("20 in"), KYNAR_500_ALUMINUM("20 in")] },
-  { id: "ms-200", name: "MS-200™", coverages: ["16 in", "18 in"], materials: [KYNAR_500_STEEL("24 in"), KYNAR_500_ALUMINUM("24 in")] },
-  { id: "versa-span", name: "Versa-Span™", coverages: ["12 in", "14 in"], materials: [KYNAR_500_STEEL("20 in"), KYNAR_500_ALUMINUM("20 in")] },
-  { id: "versa-span", name: "Versa-Span™", coverages: ["16 in", "18 in"], materials: [KYNAR_500_STEEL("24 in"), KYNAR_500_ALUMINUM("24 in")] },
-  { id: "smoothwall-soffit-shadowline", name: "SmoothWall™ / Lifetime Soffit™ / ShadowLine™", coverages: ["1 in depth"], materials: [KYNAR_500_STEEL("16 in")] },
-  { id: "smoothwall-soffit-shadowline", name: "SmoothWall™ / Lifetime Soffit™ / ShadowLine™", coverages: ["1-1/2 in depth"], materials: [KYNAR_500_STEEL("20 in"), KYNAR_500_ALUMINUM("20 in")] },
-  { id: "contour", name: "Contour Classic Series™", coverages: ["16 in"], materials: [KYNAR_500_STEEL("24 in"), KYNAR_500_ALUMINUM("24 in")], note: "12 in Contour excluded" },
-  { id: "flat-sheet", name: "Flat Sheet", coverages: ["48 x 120 in"], materials: [KYNAR_500_STEEL("48 in"), KYNAR_500_ALUMINUM("48 in")] },
+  { id: "streamline", name: "StreamLine™", coverages: ["12 in", "16 in"], materials: [ARMORTECH()], group: "S1", sourceUrl: "https://taylormetal.com/products/standing-seam-panels/streamline/" },
+  { id: "slim-lock", name: "Slim-Lock™", coverages: ["16 in nominal"], materials: [KYNAR_500_STEEL("20 in"), KYNAR_500_ALUMINUM("20 in")], note: "Accent ribs, striations or flat pan", sourceUrl: "https://taylormetal.com/products/standing-seam-panels/slim-lock-produced-in-or/" },
+  { id: "ms-150", name: "MS-150™", coverages: ["12 in"], materials: [KYNAR_500_STEEL("16 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("16 in")], note: "Accent ribs, striations or flat pan", sourceUrl: "https://taylormetal.com/products/mechanically-seamed-panels/ms-150/" },
+  { id: "ms-150", name: "MS-150™", coverages: ["16 in"], materials: [KYNAR_500_STEEL("20 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("20 in")], note: "Accent ribs, striations or flat pan", sourceUrl: "https://taylormetal.com/products/mechanically-seamed-panels/ms-150/" },
+  { id: "ms-150", name: "MS-150™", coverages: ["20 in"], materials: [KYNAR_500_STEEL("24 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("24 in")], note: "Accent ribs, striations or flat pan", sourceUrl: "https://taylormetal.com/products/mechanically-seamed-panels/ms-150/" },
+  { id: "board-and-batten", name: "Board and Batten Siding Panel", coverages: ["12 in"], materials: [ARMORTECH(), KYNAR_500_STEEL("16 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("16 in")], group: "S1", sourceUrl: "https://taylormetal.com/products/concealed-fastener-panels/board-batten/" },
+  { id: "board-and-batten", name: "Board and Batten Siding Panel", coverages: ["16 in"], materials: [ARMORTECH(), KYNAR_500_STEEL("20 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("20 in")], group: "S1", sourceUrl: "https://taylormetal.com/products/concealed-fastener-panels/board-batten/" },
+  { id: "tuff-rib", name: "Tuff Rib", coverages: ["36 in"], materials: [ARMORTECH(["29 ga", "26 ga"]), KYNAR_500_ALUMINUM("43 in")], group: "S2", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/tuff-rib/" },
+  { id: "t-3", name: "T-3™", coverages: ["36 in"], materials: [ARMORTECH(), KYNAR_500_STEEL("43 in"), WITH_SPECIAL(KYNAR_500_ALUMINUM("43 in"), [".040″ Aluminum"]), UNPAINTED_STEEL(["29 ga"])], note: "Standard or wall profile", group: "S2", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/t-3/" },
+  { id: "pbr", name: "PBR", coverages: ["36 in"], materials: [ARMORTECH(), KYNAR_500_STEEL("43 in"), WITH_SPECIAL(KYNAR_500_ALUMINUM("43 in"), [".040″ Aluminum"])], group: "S4", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/pbr/" },
+  { id: "marion-r-panel", name: "Marion “R” Panel™", coverages: ["36 in"], materials: [ARMORTECH(), KYNAR_500_STEEL("43 in"), WITH_SPECIAL(KYNAR_500_ALUMINUM("43 in"), [".040″ Aluminum"])], group: "S4", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/marion-r-panel/" },
+  { id: "hr-34", name: "HR-34™", coverages: ["34 in"], materials: [ARMORTECH(), WITH_SPECIAL(KYNAR_500_STEEL("43 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("43 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], group: "S4", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/hr-34-produced-in-or/" },
+  { id: "gr-7", name: "GR-7™", coverages: ["36 in"], materials: [ARMORTECH(), WITH_SPECIAL(KYNAR_500_STEEL("43 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("43 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"]), UNPAINTED_STEEL(["29 ga"])], group: "S2", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/gr-7/" },
+  { id: "max-corr", name: "Max Corr™", coverages: ["34-5/8 in"], materials: [ARMORTECH(["29 ga"])], group: "S4", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/max-corr/" },
+  { id: "max-corr", name: "Max Corr™", coverages: ["37-1/4 in"], materials: [ARMORTECH(), KYNAR_500_STEEL("43 in"), WITH_SPECIAL(KYNAR_500_ALUMINUM("43 in"), [".040″ Aluminum"])], group: "S4", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/max-corr/" },
+  { id: "classic-7-8-corrugated", name: "Classic 7/8″ Corrugated™", coverages: ["32 in"], materials: [ARMORTECH(["29 ga", "26 ga"]), WITH_SPECIAL(KYNAR_500_STEEL("43 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("43 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], group: "S5", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/classic-7-8-corrugated-produced-in-salem/" },
+  { id: "two-and-a-half-corrugated", name: "2-1/2″ Corrugated", coverages: ["24 in"], materials: [UNPAINTED_STEEL(["29 ga", "26 ga"])], note: "ZINCALUME® Plus or Galvanized; wall use", group: "S6", sourceUrl: "https://taylormetal.com/products/exposed-fastener-panels/2-1-2-corrugated/" },
+  { id: "easy-lock", name: "Easy-Lock™", coverages: ["12 in"], materials: [KYNAR_500_STEEL("16 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("16 in")], sourceUrl: "https://taylormetal.com/products/standing-seam-panels/easy-lock/" },
+  { id: "easy-lock", name: "Easy-Lock™", coverages: ["16 in"], materials: [KYNAR_500_STEEL("20 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("20 in")], sourceUrl: "https://taylormetal.com/products/standing-seam-panels/easy-lock/" },
+  { id: "ms-100", name: "MS-100™", coverages: ["13 in"], materials: [WITH_SPECIAL(KYNAR_500_STEEL("16 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("16 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], sourceUrl: "https://taylormetal.com/products/mechanically-seamed-panels/ms-100/" },
+  { id: "ms-100", name: "MS-100™", coverages: ["17 in", "21 in"], materials: [WITH_SPECIAL(KYNAR_500_STEEL("20 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("20 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], sourceUrl: "https://taylormetal.com/products/mechanically-seamed-panels/ms-100/" },
+  { id: "ms-200", name: "MS-200™", coverages: ["12 in", "14 in"], materials: [KYNAR_500_STEEL("20 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("20 in")], sourceUrl: "https://taylormetal.com/products/mechanically-seamed-panels/ms-200/" },
+  { id: "ms-200", name: "MS-200™", coverages: ["16 in", "18 in"], materials: [KYNAR_500_STEEL("24 in", ["26 ga", "24 ga", "22 ga"]), KYNAR_500_ALUMINUM("24 in")], sourceUrl: "https://taylormetal.com/products/mechanically-seamed-panels/ms-200/" },
+  { id: "versa-span", name: "Versa-Span™", coverages: ["12 in", "14 in"], materials: [WITH_SPECIAL(KYNAR_500_STEEL("20 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("20 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], sourceUrl: "https://taylormetal.com/products/standing-seam-panels/versa-span-produced-in-salem/" },
+  { id: "versa-span", name: "Versa-Span™", coverages: ["16 in", "18 in"], materials: [WITH_SPECIAL(KYNAR_500_STEEL("24 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("24 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], sourceUrl: "https://taylormetal.com/products/standing-seam-panels/versa-span-produced-in-salem/" },
+  { id: "smoothwall-soffit-shadowline", name: "SmoothWall™ / Lifetime Soffit™ / ShadowLine™", coverages: ["1 in depth"], materials: [WITH_SPECIAL(KYNAR_500_STEEL("16 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("16 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], sourceUrl: "https://taylormetal.com/products/concealed-fastener-panels/smoothwall/" },
+  { id: "smoothwall-soffit-shadowline", name: "SmoothWall™ / Lifetime Soffit™ / ShadowLine™", coverages: ["1-1/2 in depth"], materials: [WITH_SPECIAL(KYNAR_500_STEEL("20 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("20 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], sourceUrl: "https://taylormetal.com/products/concealed-fastener-panels/smoothwall/" },
+  { id: "contour", name: "Contour Classic Series™", coverages: ["12 in", "16 in"], materials: [WITH_SPECIAL(KYNAR_500_STEEL("24 in"), ["20 ga", "18 ga"]), WITH_SPECIAL(KYNAR_500_ALUMINUM("24 in"), [".040″ Aluminum", ".050″ Aluminum", ".063″ Aluminum"])], sourceUrl: "https://taylormetal.com/products/contour/c-5/" },
+  { id: "flat-sheet", name: "Flat Sheet", coverages: ["48 x 120 in"], materials: [KYNAR_500_STEEL("48 in"), KYNAR_500_ALUMINUM("48 in")], sourceUrl: "https://taylormetal.com/wp-content/uploads/2021/11/Flat-Sheet.pdf" },
 ];
 
 export function materialLabel(id: MaterialFinishId) {
@@ -174,6 +187,7 @@ export function getPanelColors(profile: PanelProfile, id: MaterialFinishId, gaug
   const availability = getMaterialAvailability(profile, id);
   const override = availability.colorsByGauge?.[gauge];
   if (override) return override;
+  if (id === "unpainted-steel") return ["ZINCALUME® Plus", "Galvanized"];
   if (id === "armortech") {
     return profile.group === "S6" ? ["ZINCALUME®", "Galvanized"] : armortechColors;
   }
@@ -190,6 +204,7 @@ export function getPanelColors(profile: PanelProfile, id: MaterialFinishId, gaug
 export function normalizeMaterialId(value: string | undefined, gauge?: string): MaterialFinishId {
   const normalized = (value ?? "").toLowerCase();
   if (normalized.includes("aluminum") || gauge?.toLowerCase().includes("aluminum")) return "kynar500-aluminum";
+  if (normalized.includes("zincalume") || normalized.includes("galvanized") || normalized.includes("unpainted")) return "unpainted-steel";
   if (normalized.includes("kynar")) return "kynar500";
   return "armortech";
 }

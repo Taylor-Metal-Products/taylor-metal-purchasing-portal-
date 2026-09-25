@@ -177,11 +177,13 @@ export default function Home() {
   const [pdfDownload, setPdfDownload] = useState<{url:string;filename:string} | null>(null);
   const [pdfError, setPdfError] = useState("");
   const [orderId, setOrderId] = useState("");
+  const [orderOwnerAccount, setOrderOwnerAccount] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [orderStatus, setOrderStatus] = useState<OrderStatus>("draft");
   const [orders, setOrders] = useState<StoredOrder<OrderDraftPayload>[]>([]);
   const [showOrders, setShowOrders] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderMessage, setOrderMessage] = useState("");
   const [step, setStep] = useState(0);
   const profiles = configuredProfiles;
@@ -191,7 +193,7 @@ export default function Home() {
   const materialAvailability = getMaterialAvailability(profile, materialId);
   const [coverage, setCoverage] = useState(profile.coverages[0]);
   const [gauge, setGauge] = useState(materialAvailability.gauges[0]);
-  const [color, setColor] = useState("Glacier White");
+  const [color, setColor] = useState(getPanelColors(profile, materialId, materialAvailability.gauges[0])[0]);
   const [lengthRows, setLengthRows] = useState<LengthRow[]>([{ id: 1, feet: 0, inches: 0, qty: 0 }]);
   const [nextRowId, setNextRowId] = useState(2);
   const [pan, setPan] = useState("Striations");
@@ -305,14 +307,20 @@ export default function Home() {
     if(!customerAccount.trim()){setOrderMessage("Enter a customer account number before saving.");return null;}
     setSavingOrder(true);setOrderMessage("");
     try{
-      const saved=await saveOrder<OrderDraftPayload>({id:orderId||undefined,customerAccount,status,payload:buildDraftPayload()});
-      setOrderId(saved.id);setOrderNumber(saved.orderNumber);setOrderStatus(saved.status);setOrderMessage(status==="submitted"?"Order finalized and saved.":"Draft saved.");
+      const saved=await saveOrder<OrderDraftPayload>({id:orderId||undefined,ownerAccount:orderOwnerAccount||undefined,customerAccount,status,payload:buildDraftPayload()});
+      setOrderId(saved.id);setOrderOwnerAccount(saved.customerAccount);setOrderNumber(saved.orderNumber);setOrderStatus(saved.status);setOrderMessage(status==="submitted"?"Order finalized and saved.":"Draft saved successfully.");
       return saved;
-    }catch(error){setOrderMessage(error instanceof Error?error.message:"Unable to save order");return null;}finally{setSavingOrder(false);}
+    }catch(error){console.error(error);setOrderMessage("We couldn't save your draft. Please try again.");return null;}finally{setSavingOrder(false);}
   }
-  async function loadOrderList(){setOrderMessage("");try{setOrders(await listOrders<OrderDraftPayload>());setShowOrders(true);}catch(error){setOrderMessage(error instanceof Error?error.message:"Unable to load orders");}}
+  async function loadOrderList(){
+    if(!customerAccount.trim()){setOrderMessage("Enter your customer account number before loading orders.");return;}
+    setLoadingOrders(true);setOrderMessage("");
+    try{setOrders(await listOrders<OrderDraftPayload>(customerAccount));setShowOrders(true);}
+    catch(error){console.error(error);setOrderMessage("We couldn't load your saved orders. Please try again.");}
+    finally{setLoadingOrders(false);}
+  }
   function openStoredOrder(order:StoredOrder<OrderDraftPayload>){
-    const value=order.payload;setOrderId(order.id);setOrderNumber(order.orderNumber);setOrderStatus(order.status);setCustomer(value.customer||"");setCustomerAccount(value.customerAccount||order.customerAccount);setPurchasingContact(value.purchasingContact||"");setEmail(value.email||"");setBillingAddress(value.billingAddress||"");setBillingAddressVerified(Boolean(value.billingAddressVerified));setPaymentTerms(value.paymentTerms||"");setJobName(value.jobName||"");setPoNumber(value.poNumber||"");setProjectName(value.projectName||"");setReceivingContact(value.receivingContact||"");setRequestedDate(value.requestedDate||"");setDelivery(value.delivery||"");setWillCallBranch(value.willCallBranch||"");setJobsiteAddress(value.jobsiteAddress||"");setJobsiteAddressVerified(Boolean(value.jobsiteAddressVerified));setProjectNotes(value.projectNotes||"");setAccessoryQty(value.accessoryQty||{});setFlashingQty(value.flashingQty||{});setFlashingSameAsPanel(value.flashingSameAsPanel!==false);setFlashingGauge(value.flashingGauge||"26 ga");setFlashingColor(value.flashingColor||"Glacier White");setFlashingPitchMode(value.flashingPitchMode||{});setFlashingCustomPitch(value.flashingCustomPitch||{});
+    const value=order.payload;setOrderId(order.id);setOrderOwnerAccount(order.customerAccount);setOrderNumber(order.orderNumber);setOrderStatus(order.status);setCustomer(value.customer||"");setCustomerAccount(value.customerAccount||order.customerAccount);setPurchasingContact(value.purchasingContact||"");setEmail(value.email||"");setBillingAddress(value.billingAddress||"");setBillingAddressVerified(Boolean(value.billingAddressVerified));setPaymentTerms(value.paymentTerms||"");setJobName(value.jobName||"");setPoNumber(value.poNumber||"");setProjectName(value.projectName||"");setReceivingContact(value.receivingContact||"");setRequestedDate(value.requestedDate||"");setDelivery(value.delivery||"");setWillCallBranch(value.willCallBranch||"");setJobsiteAddress(value.jobsiteAddress||"");setJobsiteAddressVerified(Boolean(value.jobsiteAddressVerified));setProjectNotes(value.projectNotes||"");setAccessoryQty(value.accessoryQty||{});setFlashingQty(value.flashingQty||{});setFlashingSameAsPanel(value.flashingSameAsPanel!==false);setFlashingGauge(value.flashingGauge||"26 ga");setFlashingColor(value.flashingColor||"Glacier White");setFlashingPitchMode(value.flashingPitchMode||{});setFlashingCustomPitch(value.flashingCustomPitch||{});
     const panels=(value.panels?.length?value.panels:[currentPanel]).map(item=>{const official=panelProfiles.find(candidate=>candidate.id===item.panelId||candidate.name===normalizeProductTerminology(item.name));return {...item,panelId:official?.id??item.panelId,name:official?.name??normalizeProductTerminology(item.name),finish:normalizeProductTerminology(item.finish),color:normalizeProductTerminology(item.color)};});setSavedPanels(panels.length>1?panels:[]);setActivePanelIndex(0);loadPanel(panels[0]);setStep(0);setSubmitted(order.status==="submitted");setShowOrders(false);setShowPrintSummary(false);setPdfDownload(null);setOilCanningAcknowledged(false);setOrderReviewAcknowledged(false);setAcknowledgementError("");setOrderMessage(`${order.orderNumber} loaded for editing.`);
   }
   async function exportPdf(number=orderNumber){
@@ -354,7 +362,7 @@ export default function Home() {
           <span className="brandDivider" aria-hidden="true"/>
           <img className="portalLogo" src={assetPath("/purchasing-portal-logo.png")} alt="Purchasing Portal"/>
         </div>
-        <div className="headerActions"><button className="ghost" type="button" onClick={loadOrderList}>Load orders</button><button className="ghost primaryGhost" type="button" onClick={()=>persistOrder("draft")} disabled={savingOrder}>{savingOrder?"Saving…":"Save draft"}</button></div>
+        <div className="headerActions"><button className="ghost" type="button" onClick={loadOrderList} disabled={loadingOrders||savingOrder}>{loadingOrders?"Loading Orders…":"Load orders"}</button><button className="ghost primaryGhost" type="button" onClick={()=>persistOrder("draft")} disabled={savingOrder||loadingOrders}>{savingOrder?"Saving…":"Save draft"}</button></div>
       </header>
 
       <section className="hero">
@@ -384,7 +392,7 @@ export default function Home() {
               <Field label="Panel profile"><select value={profileIndex} onChange={e=>chooseProfile(Number(e.target.value))}>{profiles.map((p,i)=><option key={`${p.name}-${p.coverages[0]}-${i}`} value={i}>{p.name} · {p.coverages[0]}</option>)}</select></Field>
               <Field label="Material / finish"><select value={materialId} onChange={e=>chooseMaterial(e.target.value as MaterialFinishId)}>{profile.materials.map(option=><option key={option.id} value={option.id}>{materialLabel(option.id)}</option>)}</select></Field>
               <Field label="Gauge / thickness"><select value={gauge} onChange={e=>chooseGauge(e.target.value)}>{getGaugeOptions(profile,materialId).map(x=><option key={x}>{x}</option>)}</select></Field>
-              <Field label="Color (profile-filtered)"><select value={color} onChange={e=>setColor(e.target.value)}>{colors.map(x=><option key={x}>{x}{inquiryColors.has(x)?" · inquire":""}</option>)}</select></Field>
+              <Field label="Color (profile-filtered)"><select value={color} onChange={e=>setColor(e.target.value)}>{colors.map(x=><option key={x} value={x}>{x}{inquiryColors.has(x)?" · inquire":""}</option>)}</select></Field>
               {panProfileIds.has(profile.id) && <Field label="Pan option"><select value={pan} onChange={e=>setPan(e.target.value)}>{panOptions.map(x=><option key={x}>{x}</option>)}</select></Field>}
               {allowsNotching(profile.id)&&<Field label="Panel notching"><select value={notching} onChange={e=>setNotching(e.target.value as "Notched" | "No Notch")}><option>No Notch</option><option>Notched</option></select></Field>}
               {isRoofPanel(profile.id) && <Field label="Roof pitch"><input value={roofPitch} onChange={e=>setRoofPitch(e.target.value)} inputMode="text" /></Field>}
@@ -443,7 +451,7 @@ export default function Home() {
           <div className="statusBox"><span className={inquiry?"amber":"green"}></span><div><strong>{inquiry?"Inquiry configuration":"Configuration valid"}</strong><small>{inquiry?"Availability and pricing review required":"No catalog conflicts detected"}</small></div></div>
         </aside>
       </div>
-      {showOrders&&<div className="orderLibraryBackdrop" role="presentation" onMouseDown={()=>setShowOrders(false)}><section className="orderLibrary" role="dialog" aria-modal="true" aria-label="Saved orders" onMouseDown={event=>event.stopPropagation()}><div className="orderLibraryHead"><div><span>Persistent order storage</span><h2>Saved orders</h2></div><button type="button" onClick={()=>setShowOrders(false)} aria-label="Close saved orders">×</button></div>{orders.length?<div className="orderList">{orders.map(order=><button type="button" key={order.id} onClick={()=>openStoredOrder(order)}><span><strong>{order.orderNumber}</strong><small>{order.customerAccount} · updated {new Date(order.updatedAt).toLocaleString()}</small></span><b className={order.status}>{order.status}</b></button>)}</div>:<div className="emptyOrders">No saved orders yet.</div>}</section></div>}
+      {showOrders&&<div className="orderLibraryBackdrop" role="presentation" onMouseDown={()=>setShowOrders(false)}><section className="orderLibrary" role="dialog" aria-modal="true" aria-label="Saved orders" onMouseDown={event=>event.stopPropagation()}><div className="orderLibraryHead"><div><span>Customer account {customerAccount}</span><h2>Saved orders</h2></div><button type="button" onClick={()=>setShowOrders(false)} aria-label="Close saved orders">×</button></div>{orders.length?<div className="orderList">{orders.map(order=><button type="button" key={order.id} onClick={()=>openStoredOrder(order)}><span><strong>{order.payload.jobName||"Unnamed job"}</strong><small>{order.orderNumber} · saved {new Date(order.createdAt).toLocaleString()} · updated {new Date(order.updatedAt).toLocaleString()}</small></span><b className={order.status}>{order.status}</b></button>)}</div>:<div className="emptyOrders">No saved orders found for this customer account.</div>}</section></div>}
     </main>
   );
 }

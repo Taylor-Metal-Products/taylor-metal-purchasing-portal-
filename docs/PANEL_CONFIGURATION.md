@@ -4,7 +4,7 @@
 
 `app/panel-config.ts` is the only source of truth for panel compatibility.
 
-Each `PanelProfile` entry declares the stable panel ID, customer-facing name, coverage, available material systems, permitted gauges or thickness, coil width, optional per-gauge color overrides, notes, and manufacturing group.
+Each `PanelProfile` entry declares the stable panel ID, customer-facing name, coverage, available material systems, permitted standard gauges or thicknesses, optional special-order gauges, coil width, optional per-gauge color overrides, notes, manufacturing group, and Taylor Metal source URL.
 
 `panelImageCatalog` maps a stable panel ID to its local asset and original Taylor Metal source URL. Image lookup must use the ID, not fuzzy display-name matching.
 
@@ -24,9 +24,10 @@ Each `PanelProfile` entry declares the stable panel ID, customer-facing name, co
 
 - Every profile has an ID, name, coverage, and at least one material.
 - Every material has at least one gauge or thickness.
-- Material IDs are limited to `armortech`, `kynar500`, and `kynar500-aluminum`.
-- ArmorTech™ entries expose only `26 ga`.
+- Material IDs are limited to `armortech`, `kynar500`, `kynar500-aluminum`, and `unpainted-steel`.
+- ArmorTech™ entries expose only the profile-specific 29 ga and/or 26 ga catalog offerings.
 - Painted aluminum entries expose only `.032″ Aluminum`.
+- Special-order gauges and thicknesses never appear in the normal selector.
 - Every returned color list is nonempty.
 - Every configured image path is local and names an existing asset.
 - Missing images stay missing visibly; they are never replaced with an unrelated profile.

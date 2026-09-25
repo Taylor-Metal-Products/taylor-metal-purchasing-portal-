@@ -17,6 +17,7 @@ type OrderRow = {
 
 type SaveRequest = {
   id?: string;
+  ownerAccount?: string;
   customerAccount?: string;
   status?: OrderStatus;
   payload?: Record<string, unknown>;
@@ -61,12 +62,16 @@ function serialize(row: OrderRow): StoredOrder {
 export async function GET(request: Request) {
   try {
     await ensureSchema();
-    const id = new URL(request.url).searchParams.get("id");
+    const search = new URL(request.url).searchParams;
+    const id = search.get("id");
+    const customerAccount = search.get("customerAccount")?.trim();
     if (id) {
-      const row = await database().prepare("SELECT * FROM orders WHERE id = ?1").bind(id).first<OrderRow>();
+      if (!customerAccount) return new Response("Customer account is required", { status: 400 });
+      const row = await database().prepare("SELECT * FROM orders WHERE id = ?1 AND customer_account = ?2 COLLATE NOCASE").bind(id, customerAccount).first<OrderRow>();
       return row ? Response.json(serialize(row)) : new Response("Order not found", { status: 404 });
     }
-    const result = await database().prepare("SELECT * FROM orders ORDER BY updated_at DESC LIMIT 100").all<OrderRow>();
+    if (!customerAccount) return new Response("Customer account is required", { status: 400 });
+    const result = await database().prepare("SELECT * FROM orders WHERE customer_account = ?1 COLLATE NOCASE ORDER BY updated_at DESC LIMIT 100").bind(customerAccount).all<OrderRow>();
     return Response.json(result.results.map(serialize));
   } catch (error) {
     console.error(error);
@@ -85,7 +90,9 @@ export async function POST(request: Request) {
     const payloadJson = JSON.stringify(input.payload ?? {});
 
     if (input.id) {
-      const existing = await database().prepare("SELECT * FROM orders WHERE id = ?1").bind(input.id).first<OrderRow>();
+      const ownerAccount = String(input.ownerAccount ?? "").trim();
+      if (!ownerAccount) return new Response("Original customer account is required", { status: 400 });
+      const existing = await database().prepare("SELECT * FROM orders WHERE id = ?1 AND customer_account = ?2 COLLATE NOCASE").bind(input.id, ownerAccount).first<OrderRow>();
       if (!existing) return new Response("Order not found", { status: 404 });
       await database().prepare(`UPDATE orders SET customer_account = ?1, status = ?2, payload_json = ?3,
         revision = revision + 1, updated_at = ?4, submitted_at = CASE WHEN ?2 = 'submitted' THEN ?4 ELSE submitted_at END

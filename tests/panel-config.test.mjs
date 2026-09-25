@@ -14,7 +14,7 @@ const javascript = ts.transpileModule(source, {
 const config = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`);
 
 test("every panel configuration is internally valid", () => {
-  const allowedMaterials = new Set(["armortech", "kynar500", "kynar500-aluminum"]);
+  const allowedMaterials = new Set(["armortech", "kynar500", "kynar500-aluminum", "unpainted-steel"]);
   assert.ok(config.panelProfiles.length > 0);
   for (const profile of config.panelProfiles) {
     assert.ok(profile.id && profile.name, "panel ID and name are required");
@@ -23,14 +23,40 @@ test("every panel configuration is internally valid", () => {
     for (const material of profile.materials) {
       assert.ok(allowedMaterials.has(material.id), `${profile.name} has an unknown material`);
       assert.ok(material.gauges.length > 0, `${profile.name}/${material.id} needs a gauge`);
-      if (material.id === "armortech") assert.deepEqual(material.gauges, ["26 ga"]);
-      if (material.id === "kynar500-aluminum") assert.deepEqual(material.gauges, [".032″ Aluminum"]);
+      assert.equal(new Set(material.gauges).size, material.gauges.length, `${profile.name} has duplicate gauges`);
+      for (const specialGauge of material.specialOrderGauges ?? []) {
+        assert.ok(!material.gauges.includes(specialGauge), `${profile.name}/${material.id} exposes special-order ${specialGauge} as standard`);
+      }
       for (const gauge of material.gauges) {
         const colors = config.getPanelColors(profile, material.id, gauge);
         assert.ok(colors.length > 0, `${profile.name}/${material.id}/${gauge} needs colors`);
         assert.equal(new Set(colors).size, colors.length, `${profile.name} has duplicate colors`);
       }
     }
+  }
+});
+
+test("audited gauges match the current Taylor Metal panel catalog", () => {
+  const profile = (id, coverage) => config.panelProfiles.find(item => item.id === id && item.coverages.includes(coverage));
+  const gauges = (id, coverage, material) => profile(id, coverage).materials.find(item => item.id === material)?.gauges ?? [];
+
+  assert.deepEqual(gauges("streamline", "16 in", "armortech"), ["26 ga"]);
+  assert.deepEqual(gauges("slim-lock", "16 in nominal", "kynar500"), ["24 ga", "22 ga"]);
+  assert.deepEqual(gauges("easy-lock", "12 in", "kynar500"), ["26 ga", "24 ga", "22 ga"]);
+  assert.deepEqual(gauges("ms-100", "13 in", "kynar500"), ["24 ga", "22 ga"]);
+  assert.deepEqual(gauges("ms-150", "12 in", "kynar500"), ["26 ga", "24 ga", "22 ga"]);
+  assert.deepEqual(gauges("ms-200", "12 in", "kynar500"), ["26 ga", "24 ga", "22 ga"]);
+  assert.deepEqual(gauges("versa-span", "12 in", "kynar500"), ["24 ga", "22 ga"]);
+  assert.deepEqual(gauges("tuff-rib", "36 in", "armortech"), ["29 ga", "26 ga"]);
+  assert.deepEqual(gauges("t-3", "36 in", "unpainted-steel"), ["29 ga"]);
+  assert.deepEqual(gauges("gr-7", "36 in", "unpainted-steel"), ["29 ga"]);
+  assert.deepEqual(gauges("max-corr", "34-5/8 in", "armortech"), ["29 ga"]);
+  assert.deepEqual(gauges("max-corr", "37-1/4 in", "kynar500"), ["24 ga", "22 ga"]);
+  assert.deepEqual(gauges("two-and-a-half-corrugated", "24 in", "unpainted-steel"), ["29 ga", "26 ga"]);
+  assert.deepEqual(gauges("contour", "12 in", "kynar500"), ["24 ga", "22 ga"]);
+
+  for (const item of config.panelProfiles) {
+    assert.match(item.sourceUrl, /^https:\/\/taylormetal\.com\//, `${item.name} needs its catalog source`);
   }
 });
 

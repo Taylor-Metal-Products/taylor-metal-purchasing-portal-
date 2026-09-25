@@ -49,7 +49,7 @@ npm run dev
 
 Open the local URL printed by Vite, normally `http://localhost:5173`.
 
-The standalone site stores drafts and submitted orders in the browser's `localStorage` by default. Orders persist across refreshes and browser restarts on that device, but they are not automatically shared between employees or devices. PDF generation also runs entirely in the browser.
+The standalone site stores drafts and submitted orders in the browser's `localStorage` by default. Orders persist across refreshes and browser restarts on that device. **Load Orders** requires a customer account and only lists records saved for that account, but this browser-side filtering is not an authentication or security boundary. Orders are not automatically shared between employees, browsers, or devices. PDF generation also runs entirely in the browser.
 
 For shared company-wide order storage, deploy a protected API separately and set `VITE_ORDER_API_BASE_URL` only to its public API origin during the Pages build. The API must expose `GET /orders` and `POST /orders`, implement authentication/authorization, and allow the Pages origin through CORS. Never place database credentials, private API keys, or service secrets in a `VITE_` variable because Vite embeds those values in public browser JavaScript. The existing Cloudflare D1 route remains available for non-static deployments and can be adapted into that protected service.
 
