@@ -339,7 +339,11 @@ export default function Home() {
   return (
     <main>
       <header className="topbar">
-        <div className="brand"><img className="brandLogo" src={assetPath("/taylor-metal-logo.png")} alt="Taylor Metal Products"/><div><strong>Taylor Metal Products</strong><small>Purchasing Portal</small></div></div>
+        <div className="brand">
+          <img className="brandLogo" src={assetPath("/taylor-metal-logo.png")} alt="Taylor Metal Products"/>
+          <span className="brandDivider" aria-hidden="true"/>
+          <img className="portalLogo" src={assetPath("/purchasing-portal-logo.png")} alt="Purchasing Portal"/>
+        </div>
         <div className="headerActions"><button className="ghost" type="button" onClick={loadOrderList}>Load orders</button><button className="ghost primaryGhost" type="button" onClick={()=>persistOrder("draft")} disabled={savingOrder}>{savingOrder?"Saving…":"Save draft"}</button></div>
       </header>
 

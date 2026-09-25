@@ -266,6 +266,34 @@ main:not(.printSummaryPage)::before{content:"";position:fixed;inset:68px 0 0;z-i
 .printHeader>img{width:190px;height:auto;max-height:72px;object-fit:contain}
 @media(max-width:620px){.brandLogo{width:145px;height:auto;max-height:44px}}
 
+/* Dual-logo purchasing portal header */
+.topbar{
+  min-height:88px;
+  height:auto;
+  gap:24px;
+  padding-top:9px;
+  padding-bottom:9px;
+  background:linear-gradient(180deg,#eaf1f6 0%,#dce8f0 100%);
+  border-bottom-color:#b8cad7;
+}
+.brand{min-width:0;gap:18px;flex:1}
+.brandLogo{width:230px;height:auto;max-height:64px;flex:0 1 auto}
+.brandDivider{width:1px;height:46px;flex:0 0 1px;background:linear-gradient(180deg,transparent,#9cb3c3 18%,#9cb3c3 82%,transparent)}
+.portalLogo{display:block;width:min(270px,31vw);height:auto;max-height:62px;object-fit:contain;flex:0 1 auto}
+.topbar .ghost{border-color:#aabfcd;background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(231,239,244,.96))}
+
+@media(max-width:900px){
+  .topbar{min-height:78px;height:auto;gap:14px;padding-top:8px;padding-bottom:8px}
+  .brand{gap:12px}.brandLogo{width:180px;max-height:54px}.portalLogo{width:min(220px,30vw);max-height:52px}.brandDivider{height:40px}
+}
+
+@media(max-width:620px){
+  .topbar{min-height:0;height:auto;flex-wrap:wrap;justify-content:center;gap:7px;padding:8px 12px 9px}
+  .brand{width:100%;flex:1 0 100%;justify-content:center;gap:10px}
+  .brandLogo{width:150px;height:auto;max-height:48px}.portalLogo{width:min(185px,47vw);height:auto;max-height:48px}.brandDivider{height:34px}
+  .headerActions{width:100%;justify-content:center}.headerActions .ghost{display:inline-flex;min-height:40px;padding:7px 12px;font-size:11px}
+}
+
 @media print{
   body{background:#fff;font-family:Arial,Helvetica,sans-serif}.printSheet{border-radius:0;box-shadow:none}.printInfoGrid>div,.printSection table,.printSection th,.printSection td{backdrop-filter:none}
 }
