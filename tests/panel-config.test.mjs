@@ -42,10 +42,13 @@ test("audited gauges match the current Taylor Metal panel catalog", () => {
 
   assert.deepEqual(gauges("streamline", "16 in", "armortech"), ["26 ga"]);
   assert.deepEqual(gauges("slim-lock", "16 in nominal", "kynar500"), ["24 ga", "22 ga"]);
-  assert.deepEqual(gauges("easy-lock", "12 in", "kynar500"), ["26 ga", "24 ga", "22 ga"]);
+  assert.deepEqual(gauges("easy-lock", "12 in", "armortech"), ["26 ga"]);
+  assert.deepEqual(gauges("easy-lock", "12 in", "kynar500"), ["24 ga", "22 ga"]);
   assert.deepEqual(gauges("ms-100", "13 in", "kynar500"), ["24 ga", "22 ga"]);
-  assert.deepEqual(gauges("ms-150", "12 in", "kynar500"), ["26 ga", "24 ga", "22 ga"]);
-  assert.deepEqual(gauges("ms-200", "12 in", "kynar500"), ["26 ga", "24 ga", "22 ga"]);
+  assert.deepEqual(gauges("ms-150", "12 in", "armortech"), ["26 ga"]);
+  assert.deepEqual(gauges("ms-150", "12 in", "kynar500"), ["24 ga", "22 ga"]);
+  assert.deepEqual(gauges("ms-200", "12 in", "armortech"), ["26 ga"]);
+  assert.deepEqual(gauges("ms-200", "12 in", "kynar500"), ["24 ga", "22 ga"]);
   assert.deepEqual(gauges("versa-span", "12 in", "kynar500"), ["24 ga", "22 ga"]);
   assert.deepEqual(gauges("tuff-rib", "36 in", "armortech"), ["29 ga", "26 ga"]);
   assert.deepEqual(profile("tuff-rib", "36 in").materials.map(item => item.id), ["armortech"]);
@@ -74,6 +77,41 @@ test("panel options never broaden beyond the selected profile", () => {
       assert.deepEqual(config.getGaugeOptions(profile, material.id), material.gauges);
       assert.equal(config.getMaterialAvailability(profile, material.id).id, material.id);
     }
+  }
+});
+
+test("mechanically seamed panels never expose 26 ga under Kynar 500", () => {
+  const mechanicalIds = new Set(["ms-100", "ms-150", "ms-200"]);
+  const mechanicalProfiles = config.panelProfiles.filter(item => mechanicalIds.has(item.id));
+  assert.ok(mechanicalProfiles.length > 0);
+  for (const profile of mechanicalProfiles) {
+    const kynar = profile.materials.find(material => material.id === "kynar500");
+    assert.ok(kynar, `${profile.name} ${profile.coverages.join(", ")} must retain Kynar 500®`);
+    assert.doesNotMatch(kynar.gauges.join(" "), /26 ga|29 ga/);
+    const offers26 = profile.id !== "ms-100";
+    const armortech = profile.materials.find(material => material.id === "armortech");
+    assert.equal(Boolean(armortech), offers26, `${profile.name} ${profile.coverages.join(", ")} ArmorTech™ mapping`);
+    if (armortech) assert.deepEqual(armortech.gauges, ["26 ga"]);
+  }
+});
+
+test("standing seam panels follow the operational gauge-to-finish rule", () => {
+  const expected = new Map([
+    ["streamline|12 in", { armortech: ["26 ga"] }],
+    ["slim-lock|16 in nominal", { kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["easy-lock|12 in", { armortech: ["26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["easy-lock|16 in", { armortech: ["26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["versa-span|12 in", { kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+    ["versa-span|16 in", { kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
+  ]);
+
+  for (const [key, availability] of expected) {
+    const [id, coverage] = key.split("|");
+    const profile = config.panelProfiles.find(item => item.id === id && item.coverages.includes(coverage));
+    assert.ok(profile, `${key} is missing`);
+    assert.deepEqual(Object.fromEntries(profile.materials.map(item => [item.id, item.gauges])), availability, key);
+    const kynar = profile.materials.find(material => material.id === "kynar500");
+    if (kynar) assert.doesNotMatch(kynar.gauges.join(" "), /26 ga|29 ga/);
   }
 });
 
