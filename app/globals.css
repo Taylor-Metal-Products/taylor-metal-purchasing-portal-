@@ -244,17 +244,17 @@ body{
   background-color:#dce8f1;
   background-image:
     linear-gradient(145deg,rgba(247,251,253,.78),rgba(214,230,241,.58)),
-    url('/roof-blueprint.svg'),
     radial-gradient(circle at 9% 14%,rgba(35,126,178,.12),transparent 31rem),
     radial-gradient(circle at 91% 76%,rgba(32,104,149,.09),transparent 34rem);
-  background-position:center,center 76px,left top,right bottom;
-  background-size:cover,1680px auto,auto,auto;
-  background-repeat:no-repeat,no-repeat,no-repeat,no-repeat;
-  background-attachment:fixed,fixed,fixed,fixed;
-  background-blend-mode:normal,multiply,normal,normal;
+  background-position:center,left top,right bottom;
+  background-size:cover,auto,auto;
+  background-repeat:no-repeat;
+  background-attachment:fixed;
 }
 main:not(.printSummaryPage){position:relative;isolation:isolate}
-main:not(.printSummaryPage)::before{content:"";position:fixed;inset:68px 0 0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(246,250,253,.64),rgba(218,232,242,.5));backdrop-filter:blur(.45px)}
+main:not(.printSummaryPage)::before{content:"";position:fixed;inset:68px 0 0;z-index:-2;pointer-events:none;background:url('/roof-blueprint.svg') center 35%/cover no-repeat;opacity:.12;filter:contrast(.85) brightness(1.05)}
+main:not(.printSummaryPage)::after{content:"";position:fixed;inset:68px 0 0;z-index:-1;pointer-events:none;background:linear-gradient(135deg,rgba(246,250,253,.22),rgba(218,232,242,.16))}
+@media print{main:not(.printSummaryPage)::before,main:not(.printSummaryPage)::after{display:none}}
 .topbar{border-bottom:1px solid rgba(126,159,183,.75);box-shadow:0 10px 30px rgba(22,65,96,.14)}
 .headerActions{display:flex;align-items:center;gap:10px}.headerActions .ghost{font-family:Arial,Helvetica,sans-serif;font-size:inherit;font-weight:750;letter-spacing:.005em;text-align:center;text-transform:none;color:#29475c}.headerActions .primaryGhost{background:linear-gradient(180deg,#fff,#eef4f7);color:#29475c;border-color:#bdccd6;text-shadow:none;box-shadow:0 4px 0 rgba(8,55,86,.13),0 8px 18px rgba(20,61,88,.12),inset 0 1px rgba(255,255,255,.6)}
 .headerActions button:disabled,.reportActions button:disabled{opacity:.55;cursor:not-allowed;transform:none}
