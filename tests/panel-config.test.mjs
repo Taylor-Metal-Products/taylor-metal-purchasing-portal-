@@ -59,11 +59,6 @@ test("audited gauges match the current Taylor Metal panel catalog", () => {
   assert.deepEqual(gauges("max-corr", "34-5/8 in", "armortech"), ["29 ga"]);
   assert.deepEqual(gauges("max-corr", "37-1/4 in", "kynar500"), ["24 ga", "22 ga"]);
   assert.deepEqual(gauges("classic-7-8-corrugated", "32 in", "armortech"), ["26 ga"]);
-  assert.deepEqual(gauges("two-and-a-half-corrugated", "24 in", "unpainted-steel"), ["29 ga", "26 ga"]);
-  const corrugated = profile("two-and-a-half-corrugated", "24 in");
-  assert.equal(config.materialLabel("unpainted-steel"), "ZINCALUME® or Galvanized");
-  assert.deepEqual(config.getPanelColors(corrugated, "unpainted-steel", "29 ga"), ["ZINCALUME®", "Galvanized"]);
-  assert.deepEqual(config.getPanelColors(corrugated, "unpainted-steel", "26 ga"), ["ZINCALUME®", "Galvanized"]);
   assert.deepEqual(gauges("contour", "12 in", "kynar500"), ["24 ga", "22 ga"]);
 
   for (const item of config.panelProfiles) {
@@ -88,11 +83,79 @@ test("mechanically seamed panels never expose 26 ga under Kynar 500", () => {
     const kynar = profile.materials.find(material => material.id === "kynar500");
     assert.ok(kynar, `${profile.name} ${profile.coverages.join(", ")} must retain Kynar 500®`);
     assert.doesNotMatch(kynar.gauges.join(" "), /26 ga|29 ga/);
-    const offers26 = profile.id !== "ms-100";
     const armortech = profile.materials.find(material => material.id === "armortech");
-    assert.equal(Boolean(armortech), offers26, `${profile.name} ${profile.coverages.join(", ")} ArmorTech™ mapping`);
-    if (armortech) assert.deepEqual(armortech.gauges, ["26 ga"]);
+    assert.deepEqual(armortech?.gauges, ["26 ga"], `${profile.name} ${profile.coverages.join(", ")} ArmorTech™ mapping`);
   }
+});
+
+test("MS100, MS150, and MS200 expose the full standard material options without 29 ga", () => {
+  const mechanicalIds = new Set(["ms-100", "ms-150", "ms-200"]);
+  const mechanicalProfiles = config.panelProfiles.filter(profile => mechanicalIds.has(profile.id));
+  assert.equal(mechanicalProfiles.length, 7, "all configured MS coverage variants are covered");
+
+  for (const profile of mechanicalProfiles) {
+    const byId = Object.fromEntries(profile.materials.map(material => [material.id, material]));
+    assert.deepEqual(new Set(Object.keys(byId)), new Set([
+      "armortech", "unpainted-steel", "kynar500", "kynar500-aluminum",
+    ]), `${profile.name} ${profile.coverages.join(", ")} material list`);
+    assert.deepEqual(byId.armortech.gauges, ["26 ga"]);
+    assert.deepEqual(byId["unpainted-steel"].gauges, ["24 ga", "26 ga"]);
+    assert.deepEqual(byId.kynar500.gauges, ["24 ga", "22 ga"]);
+    assert.deepEqual(byId["kynar500-aluminum"].gauges, [".032″ Aluminum"]);
+    for (const material of profile.materials) {
+      assert.ok(!material.gauges.includes("29 ga"), `${profile.name} must not offer 29 ga`);
+      assert.ok(!(material.specialOrderGauges ?? []).includes("29 ga"), `${profile.name} must not list 29 ga as special`);
+      for (const gauge of material.gauges) {
+        assert.ok(config.getPanelColors(profile, material.id, gauge).length > 0, `${profile.name}/${material.id}/${gauge} needs colors`);
+      }
+    }
+  }
+});
+
+test("MS panel material, gauge, and color selections remain in saved, loaded, and edited orders", () => {
+  const pageSource = readFileSync(path.join(root, "app", "page.tsx"), "utf8");
+  assert.match(pageSource, /const currentPanel:PanelSnapshot \| null = profile && materialId \? \{panelId:profile\.id,materialId,finish:materialLabel\(materialId\),name:profile\.name,coverage,gauge,color/);
+  assert.match(pageSource, /panels:allPanels\.map\(item=>\(\{\.\.\.item,lengths:item\.lengths\.map\(row=>\(\{\.\.\.row\}\)\)\}\)\)/);
+  assert.match(pageSource, /allowedGauges\.includes\(item\.gauge\)\?item\.gauge:allowedGauges\[0\]/);
+  assert.match(pageSource, /allowedColors\.includes\(item\.color\)\?item\.color:allowedColors\[0\]/);
+});
+
+test("a new Panel Order starts blank until the customer selects a panel", () => {
+  const pageSource = readFileSync(path.join(root, "app", "page.tsx"), "utf8");
+  assert.match(pageSource, /const \[profileIndex, setProfileIndex\] = useState\(-1\)/);
+  assert.match(pageSource, /Please Select a Panel/);
+  assert.match(pageSource, /useState<MaterialFinishId \| "">\(""\)/);
+  assert.match(pageSource, /const \[coverage, setCoverage\] = useState\(""\)/);
+  assert.match(pageSource, /const \[gauge, setGauge\] = useState\(""\)/);
+  assert.match(pageSource, /const \[color, setColor\] = useState\(""\)/);
+  assert.match(pageSource, /disabled=\{!hasSelectedProfile\}/);
+  assert.match(pageSource, /: currentPanel \? \[currentPanel\] : \[\]/);
+});
+
+test("ZINCALUME® and Galvanized are normal 24/26 ga choices and Zincalume Plus is not selectable", () => {
+  const unpaintedProfiles = config.panelProfiles.filter(profile => profile.materials.some(material => material.id === "unpainted-steel"));
+  assert.equal(unpaintedProfiles.length, 8, "Corrugated and all configured MS coverage variants expose unpainted steel");
+  for (const profile of unpaintedProfiles) {
+    const unpainted = profile.materials.find(material => material.id === "unpainted-steel");
+    assert.ok(unpainted.gauges.includes("24 ga"), `${profile.name} ${profile.coverages.join(", ")} needs 24 ga`);
+    assert.ok(unpainted.gauges.includes("26 ga"), `${profile.name} ${profile.coverages.join(", ")} needs 26 ga`);
+    assert.deepEqual(config.getPanelColors(profile, "unpainted-steel", "24 ga"), ["ZINCALUME®", "Galvanized"]);
+    assert.deepEqual(config.getPanelColors(profile, "unpainted-steel", "26 ga"), ["ZINCALUME®", "Galvanized"]);
+  }
+
+  assert.ok(!config.kynar500Colors.includes("ZINCALUME® Plus"));
+  for (const profile of config.panelProfiles) {
+    for (const material of profile.materials) {
+      for (const gauge of material.gauges) {
+        assert.ok(!config.getPanelColors(profile, material.id, gauge).includes("ZINCALUME® Plus"), `${profile.name} still exposes Zincalume Plus`);
+      }
+    }
+  }
+  const pageSource = readFileSync(path.join(root, "app", "page.tsx"), "utf8");
+  assert.match(pageSource, /const inquiryColors = new Set\(\["Vintage", "Metallic Silver"\]\)/);
+  assert.match(pageSource, /inquiryColors\.has\(x\)&&materialId!=="unpainted-steel"/);
+  assert.ok(!pageSource.includes('"Galvanized · inquire"'));
+  assert.ok(config.getPanelColors(unpaintedProfiles[0], "unpainted-steel", "24 ga").includes("Galvanized"));
 });
 
 test("standing seam panels follow the operational gauge-to-finish rule", () => {
@@ -115,7 +178,7 @@ test("standing seam panels follow the operational gauge-to-finish rule", () => {
   }
 });
 
-test("exposed-fastener panels expose only audited standard gauge and finish combinations", () => {
+test("exposed-fastener profiles retain their configured gauge and finish combinations", () => {
   const expected = new Map([
     ["tuff-rib|36 in", { armortech: ["29 ga", "26 ga"] }],
     ["t-3|36 in", { armortech: ["29 ga", "26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
@@ -126,7 +189,7 @@ test("exposed-fastener panels expose only audited standard gauge and finish comb
     ["max-corr|34-5/8 in", { armortech: ["29 ga"] }],
     ["max-corr|37-1/4 in", { armortech: ["26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
     ["classic-7-8-corrugated|32 in", { armortech: ["26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
-    ["two-and-a-half-corrugated|24 in", { "unpainted-steel": ["29 ga", "26 ga"] }],
+    ["two-and-a-half-corrugated|24 in", { "unpainted-steel": ["29 ga", "26 ga", "24 ga"], armortech: ["29 ga", "26 ga"], kynar500: ["24 ga", "22 ga"], "kynar500-aluminum": [".032″ Aluminum"] }],
   ]);
 
   for (const [key, availability] of expected) {
@@ -137,10 +200,40 @@ test("exposed-fastener panels expose only audited standard gauge and finish comb
   }
 });
 
+test("2-1/2-inch Corrugated exposes the existing application material, gauge, thickness, and color lists", () => {
+  const corrugated = config.panelProfiles.find(item => item.id === "two-and-a-half-corrugated" && item.coverages.includes("24 in"));
+  assert.ok(corrugated);
+  assert.deepEqual(corrugated.materials.map(item => config.materialLabel(item.id)), [
+    "ZINCALUME® or Galvanized", "ArmorTech™", "Kynar 500®", "Kynar 500® Painted Aluminum",
+  ]);
+  assert.deepEqual(corrugated.materials.map(item => item.gauges), [
+    ["29 ga", "26 ga", "24 ga"], ["29 ga", "26 ga"], ["24 ga", "22 ga"], [".032″ Aluminum"],
+  ]);
+  assert.deepEqual(config.getPanelColors(corrugated, "unpainted-steel", "29 ga"), ["ZINCALUME®", "Galvanized"]);
+  assert.deepEqual(config.getPanelColors(corrugated, "unpainted-steel", "26 ga"), ["ZINCALUME®", "Galvanized"]);
+  assert.deepEqual(config.getPanelColors(corrugated, "unpainted-steel", "24 ga"), ["ZINCALUME®", "Galvanized"]);
+  assert.deepEqual(config.getPanelColors(corrugated, "armortech", "29 ga"), config.armortechColors);
+  assert.deepEqual(config.getPanelColors(corrugated, "armortech", "26 ga"), config.armortechColors);
+  assert.deepEqual(config.getPanelColors(corrugated, "kynar500", "24 ga"), config.kynar500Colors);
+  assert.deepEqual(config.getPanelColors(corrugated, "kynar500", "22 ga"), config.kynar500Colors);
+  assert.deepEqual(config.getPanelColors(corrugated, "kynar500-aluminum", ".032″ Aluminum"), [
+    "Glacier White", "Parchment", "Sterling Grey", "Zinc Grey", "Charcoal Grey", "Medium Bronze",
+    "Tahoe Blue", "Pacific Blue", "Forest Green", "Dark Bronze", "Graphite Black", "Matte Black",
+    "Musket", "Colonial Red", "Retro Red", "Metallic Silver", "Weathered Zinc",
+  ]);
+});
+
+test("2-1/2-inch Corrugated selection values remain part of the saved panel order", () => {
+  const pageSource = readFileSync(path.join(root, "app", "page.tsx"), "utf8");
+  assert.match(pageSource, /const currentPanel:PanelSnapshot \| null = profile && materialId \? \{panelId:profile\.id,materialId,finish:materialLabel\(materialId\),name:profile\.name,coverage,gauge,color/);
+  assert.match(pageSource, /panels:allPanels\.map\(item=>\(\{\.\.\.item,lengths:item\.lengths\.map\(row=>\(\{\.\.\.row\}\)\)\}\)\)/);
+  assert.match(pageSource, /inquiryColors\.has\(x\)&&materialId!=="unpainted-steel"/);
+});
+
 test("changing a panel or finish resets dependent selections to valid defaults", () => {
   const pageSource = readFileSync(path.join(root, "app", "page.tsx"), "utf8");
   assert.match(pageSource, /setProfileIndex\(i\);setCoverage\(nextProfile\.coverages\[0\]\);setMaterialId\(nextMaterial\.id\);setGauge\(nextGauge\);setColor\(getPanelColors\(nextProfile,nextMaterial\.id,nextGauge\)\[0\]\)/);
-  assert.match(pageSource, /function chooseMaterial\(next:MaterialFinishId\)\{const nextGauge=getGaugeOptions\(profile,next\)\[0\];setMaterialId\(next\);setGauge\(nextGauge\);setColor\(getPanelColors\(profile,next,nextGauge\)\[0\]\);\}/);
+  assert.match(pageSource, /function chooseMaterial\(next:MaterialFinishId\)\{const selectedProfile=profile!;const nextGauge=getGaugeOptions\(selectedProfile,next\)\[0\];setMaterialId\(next\);setGauge\(nextGauge\);setColor\(getPanelColors\(selectedProfile,next,nextGauge\)\[0\]\);\}/);
 });
 
 test("product terminology is normalized for legacy values", () => {
